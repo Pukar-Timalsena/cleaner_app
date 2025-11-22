@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter (Android - Force Reinstall)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "--uninstall-first"
+            ]
+        },
+        {
+            "name": "Flutter (Chrome)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome"
+        }
+    ]
+}

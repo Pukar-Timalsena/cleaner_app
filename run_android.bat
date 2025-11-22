@@ -1,0 +1,6 @@
+@echo off
+echo Starting Android emulator...
+flutter emulators --launch Pixel_7
+timeout /t 15 /nobreak
+echo Running Flutter app with fresh install...
+flutter run --uninstall-first

@@ -1,0 +1,388 @@
+import 'package:flutter/material.dart';
+import 'home.dart';
+import 'responsive_utils.dart';
+import 'signup_page.dart';
+import 'admin.dart';
+import 'cleaner.dart';
+
+
+class Loginpage extends StatefulWidget {
+  const Loginpage({super.key});
+
+  @override
+  State<Loginpage> createState() => _LoginpageState();
+}
+
+class _LoginpageState extends State<Loginpage> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // Dummy credentials for testing
+  final Map<String, Map<String, String>> _dummyUsers = {
+    'user@test.com': {'password': 'user123', 'role': 'customer', 'name': 'John Doe'},
+    'admin@test.com': {'password': 'admin123', 'role': 'admin', 'name': 'Admin User'},
+    'cleaner@test.com': {'password': 'cleaner123', 'role': 'cleaner', 'name': 'Jane Cleaner'},
+  };
+
+  void _handleLogin() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // Validate credentials
+    if (_dummyUsers.containsKey(email)) {
+      final user = _dummyUsers[email]!;
+      
+      if (user['password'] == password) {
+        // Clear fields
+        _emailController.clear();
+        _passwordController.clear();
+
+        // Route based on role
+        Widget destination;
+        switch (user['role']) {
+          case 'admin':
+            destination = AdminDashboard();
+            break;
+          case 'cleaner':
+            destination = CleanerDashboard();
+            break;
+          case 'customer':
+          default:
+            destination = Homepage(
+              userName: user['name'],
+              userEmail: email,
+              userType: 'Customer',
+            );
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      } else {
+        // Wrong password
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid password!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      // User not found
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User not found!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            colors: [
+              Color.fromARGB(255, 5, 58, 7),
+              Colors.green,
+              Colors.green,
+            ],
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SizedBox(height: responsive.spacing(80)),
+            Padding(
+              padding: EdgeInsets.all(responsive.spacing(20)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    "Login",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: responsive.responsiveFontSize(40, tabletSize: 48, desktopSize: 56),
+                    ),
+                  ),
+                  SizedBox(height: responsive.spacing(10)),
+                  Text(
+                    "Welcome Back",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: responsive.responsiveFontSize(18, tabletSize: 20, desktopSize: 22),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: responsive.spacing(15)),
+                  // Test Credentials Info
+                  Container(
+                    padding: EdgeInsets.all(responsive.spacing(12)),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Test Credentials:",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: responsive.responsiveFontSize(12),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: responsive.spacing(6)),
+                        Text(
+                          "Customer: user@test.com / user123",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: responsive.responsiveFontSize(11),
+                          ),
+                        ),
+                        Text(
+                          "Admin: admin@test.com / admin123",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: responsive.responsiveFontSize(11),
+                          ),
+                        ),
+                        Text(
+                          "Cleaner: cleaner@test.com / cleaner123",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: responsive.responsiveFontSize(11),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            Expanded(
+            // Use Expanded to avoid overflow on smaller viewports
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(60),
+                  topRight: Radius.circular(60),
+                ),
+              ),
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: responsive.maxFormWidth),
+                    padding: EdgeInsets.all(responsive.spacing(20)),
+                    child: Column(
+                      children: <Widget>[
+                        Container(
+                          padding: EdgeInsets.all(responsive.spacing(20)),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color.fromRGBO(255, 95, 27, 0.3),
+                                blurRadius: responsive.cardElevation * 2.5,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: <Widget>[
+                              Container(
+                                padding: EdgeInsets.all(responsive.spacing(10)),
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: Colors.grey),
+                                  ),
+                                ),
+                                child: TextField(
+                                  controller: _emailController,
+                                  decoration: InputDecoration(
+                                    hintText: "Email or Phone number",
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
+                                    ),
+                                    border: InputBorder.none,
+                                  ),
+                                  style: TextStyle(fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16)),
+                                ),
+                              ),
+                              Container(
+                                padding: EdgeInsets.all(responsive.spacing(10)),
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: Colors.grey),
+                                  ),
+                                ),
+                                child: TextField(
+                                  controller: _passwordController,
+                                  obscureText: true,
+                                  decoration: InputDecoration(
+                                    hintText: "Password",
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
+                                    ),
+                                    border: InputBorder.none,
+                                  ),
+                                  style: TextStyle(fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: responsive.spacing(40)),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Forget Password?",
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
+                              ),
+                            ),
+
+                            // ⭐ Updated Sign Up text
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const Signup()),
+                                );
+                              },
+                              child: Text(
+                                "Sign Up",
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+
+                        SizedBox(height: responsive.spacing(40)),
+
+                        // LOGIN BUTTON
+                        GestureDetector(
+                          onTap: _handleLogin,
+                          child: Container(
+                            height: responsive.buttonHeight,
+                            margin: EdgeInsets.symmetric(horizontal: responsive.isMobile ? 50 : 30),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(50),
+                              color: const Color.fromARGB(255, 13, 153, 31),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.green.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                "Login",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: responsive.responsiveFontSize(28, tabletSize: 30, desktopSize: 32),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: responsive.spacing(60)),
+
+                        Text(
+                          'Continue with social media',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
+                          ),
+                        ),
+
+                        SizedBox(height: responsive.spacing(15)),
+
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Container(
+                                height: responsive.spacing(40),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.blue,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "Facebook",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: responsive.spacing(30)),
+                            Expanded(
+                              child: Container(
+                                height: responsive.spacing(40),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: Colors.black,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "Github",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ), // close Container
+          ), // close Expanded
+          ],
+        ),
+      ),
+    );
+  }
+}
