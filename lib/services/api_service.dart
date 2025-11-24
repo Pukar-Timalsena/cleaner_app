@@ -6,9 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   static String get _baseUrl {
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:5000/api';
+      return 'https://cleaner-app-t1jm.onrender.com/api';
     }
-    return 'http://localhost:5000/api';
+    return 'https://cleaner-app-t1jm.onrender.com/api';
   }
 
   static Future<Map<String, dynamic>> registerUser(Map<String, String> data) async {
@@ -23,6 +23,14 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body);
     } else {
+      final body = jsonDecode(response.body);
+      if (body['error'] != null) {
+        throw Exception(body['error']);
+      } else if (body['errors'] != null) {
+        final errors = List<Map<String, dynamic>>.from(body['errors']);
+        final messages = errors.map((e) => e['msg']).join('\n');
+        throw Exception(messages);
+      }
       throw Exception('Failed to register user: ${response.body}');
     }
   }
@@ -44,6 +52,14 @@ class ApiService {
       await saveToken(data['token']);
       return data;
     } else {
+      final body = jsonDecode(response.body);
+      if (body['error'] != null) {
+        throw Exception(body['error']);
+      } else if (body['errors'] != null) {
+        final errors = List<Map<String, dynamic>>.from(body['errors']);
+        final messages = errors.map((e) => e['msg']).join('\n');
+        throw Exception(messages);
+      }
       throw Exception('Failed to login: ${response.body}');
     }
   }
