@@ -1,3 +1,4 @@
+import 'package:clean_service/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'home.dart';
 import 'responsive_utils.dart';
@@ -16,28 +17,24 @@ class Loginpage extends StatefulWidget {
 class _LoginpageState extends State<Loginpage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
 
-  // Dummy credentials for testing
-  final Map<String, Map<String, String>> _dummyUsers = {
-    'user@test.com': {'password': 'user123', 'role': 'customer', 'name': 'John Doe'},
-    'admin@test.com': {'password': 'admin123', 'role': 'admin', 'name': 'Admin User'},
-    'cleaner@test.com': {'password': 'cleaner123', 'role': 'cleaner', 'name': 'Jane Cleaner'},
-  };
+  void _handleLogin() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-  void _handleLogin() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    try {
+      final result = await ApiService.loginUser(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
 
-    // Validate credentials
-    if (_dummyUsers.containsKey(email)) {
-      final user = _dummyUsers[email]!;
-      
-      if (user['password'] == password) {
-        // Clear fields
+      if (result['success']) {
         _emailController.clear();
         _passwordController.clear();
 
-        // Route based on role
+        final user = result['user'];
         Widget destination;
         switch (user['role']) {
           case 'admin':
@@ -50,7 +47,7 @@ class _LoginpageState extends State<Loginpage> {
           default:
             destination = Homepage(
               userName: user['name'],
-              userEmail: email,
+              userEmail: user['email'],
               userType: 'Customer',
             );
         }
@@ -60,23 +57,24 @@ class _LoginpageState extends State<Loginpage> {
           MaterialPageRoute(builder: (context) => destination),
         );
       } else {
-        // Wrong password
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid password!'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showError('Login failed: ${result['error']}');
       }
-    } else {
-      // User not found
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User not found!'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    } catch (e) {
+      _showError('An error occurred: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
+  }
+
+    void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -293,31 +291,35 @@ class _LoginpageState extends State<Loginpage> {
                         // LOGIN BUTTON
                         GestureDetector(
                           onTap: _handleLogin,
-                          child: Container(
-                            height: responsive.buttonHeight,
-                            margin: EdgeInsets.symmetric(horizontal: responsive.isMobile ? 50 : 30),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(50),
-                              color: const Color.fromARGB(255, 13, 153, 31),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.green.withOpacity(0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 5),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                )
+                              : Container(
+                                  height: responsive.buttonHeight,
+                                  margin: EdgeInsets.symmetric(horizontal: responsive.isMobile ? 50 : 30),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(50),
+                                    color: const Color.fromARGB(255, 13, 153, 31),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.green.withOpacity(0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      "Login",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: responsive.responsiveFontSize(28, tabletSize: 30, desktopSize: 32),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                "Login",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: responsive.responsiveFontSize(28, tabletSize: 30, desktopSize: 32),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
                         ),
 
                         SizedBox(height: responsive.spacing(60)),

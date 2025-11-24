@@ -1,3 +1,4 @@
+import 'package:clean_service/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'responsive_utils.dart';
@@ -13,12 +14,22 @@ class Signup extends StatefulWidget {
 
 class _SignupState extends State<Signup> {
   String userType = "Customer";
+  bool _isLoading = false;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -236,56 +247,78 @@ class _SignupState extends State<Signup> {
 
                           // Sign Up Button
                           GestureDetector(
-                            onTap: () {
-                              // Navigate to home page after signup with user data
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => Homepage(
-                                    userName: _nameController.text.isNotEmpty 
-                                        ? _nameController.text 
-                                        : null,
-                                    userEmail: _emailController.text.isNotEmpty 
-                                        ? _emailController.text 
-                                        : null,
-                                    userAddress: _addressController.text.isNotEmpty 
-                                        ? _addressController.text 
-                                        : null,
-                                    userPhone: _phoneController.text.isNotEmpty 
-                                        ? _phoneController.text 
-                                        : null,
-                                    userType: userType,
-                                  ),
-                                ),
-                              );
+                            onTap: () async {
+                              setState(() {
+                                _isLoading = true;
+                              });
+
+                              try {
+                                final Map<String, String> data = {
+                                  'name': _nameController.text,
+                                  'email': _emailController.text,
+                                  'password': _passwordController.text,
+                                  'address': _addressController.text,
+                                  'phone': _phoneController.text,
+                                  'role': userType.toLowerCase(),
+                                };
+
+                                final result = await ApiService.registerUser(data);
+
+                                if (result['success']) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => Homepage(
+                                        userName: result['user']['name'],
+                                        userEmail: result['user']['email'],
+                                        userAddress: result['user']['address'],
+                                        userPhone: result['user']['phone'],
+                                        userType: result['user']['role'],
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  _showError('Registration failed: ${result['error']}');
+                                }
+                              } catch (e) {
+                                _showError('An error occurred: $e');
+                              } finally {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
                             },
-                            child: Container(
-                              height: responsive.buttonHeight,
-                              margin: EdgeInsets.symmetric(
-                                  horizontal: responsive.isMobile ? 50 : 30),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(50),
-                                color: const Color.fromARGB(255, 13, 153, 31),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.green.withOpacity(0.3),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  )
+                                : Container(
+                                    height: responsive.buttonHeight,
+                                    margin: EdgeInsets.symmetric(
+                                        horizontal: responsive.isMobile ? 50 : 30),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(50),
+                                      color: const Color.fromARGB(255, 13, 153, 31),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.green.withOpacity(0.3),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        "Sign Up",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: responsive.responsiveFontSize(
+                                              26, tabletSize: 28, desktopSize: 30),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "Sign Up",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: responsive.responsiveFontSize(
-                                        26, tabletSize: 28, desktopSize: 30),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
                           ),
 
                           SizedBox(height: responsive.spacing(40)),
