@@ -104,4 +104,52 @@ class ApiService {
       // Silently fail - services may already exist
     }
   }
+
+  static Future<Map<String, dynamic>> createService({
+    required String title,
+    required String description,
+    required String category,
+    required int basePrice,
+    String? image,
+  }) async {
+    final token = await getToken();
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/services'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'title': title,
+        'description': description,
+        'category': category,
+        'basePrice': basePrice,
+        'image': image,
+      }),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body);
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Failed to create service');
+    }
+  }
+
+  static Future<List<dynamic>> getServices() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/services'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load services');
+    }
+  }
 }

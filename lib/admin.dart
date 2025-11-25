@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'responsive_utils.dart';
 import 'login_page.dart';
+import 'services/api_service.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -76,6 +77,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final TextEditingController _descriptionController = TextEditingController();
   File? _image;
   final picker = ImagePicker();
+  bool _isUploading = false;
+  String? _selectedCategory;
+
+  final List<Map<String, String>> _categories = [
+    {'value': 'house-cleaning', 'label': 'House Cleaning'},
+    {'value': 'carpet-cleaning', 'label': 'Carpet Cleaning'},
+    {'value': 'window-cleaning', 'label': 'Window Cleaning'},
+    {'value': 'sanitary-cleaning', 'label': 'Sanitary Cleaning'},
+    {'value': 'house-painting', 'label': 'House Painting'},
+    {'value': 'other', 'label': 'Other'},
+  ];
 
   Future<void> _pickImage() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -86,30 +98,69 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  void _uploadFeature() {
-    if (_featureController.text.isNotEmpty && 
-        _descriptionController.text.isNotEmpty && 
-        _priceController.text.isNotEmpty && 
-        _image != null) {
+  Future<void> _uploadFeature() async {
+    if (_featureController.text.isEmpty ||
+        _descriptionController.text.isEmpty ||
+        _priceController.text.isEmpty ||
+        _selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final price = int.tryParse(_priceController.text);
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid price'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      await ApiService.createService(
+        title: _featureController.text,
+        description: _descriptionController.text,
+        category: _selectedCategory!,
+        basePrice: price,
+        image: _image?.path,
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Service "${_featureController.text}" uploaded successfully!'),
           backgroundColor: Colors.green,
         ),
       );
+
       _featureController.clear();
       _descriptionController.clear();
       _priceController.clear();
       setState(() {
         _image = null;
+        _selectedCategory = null;
       });
-    } else {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all fields and select an image'),
+        SnackBar(
+          content: Text('Failed to upload: $e'),
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
     }
   }
 
@@ -502,11 +553,48 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                     ),
 
+                    SizedBox(height: responsive.spacing(16)),
+
+                    // Category Field
+                    Text(
+                      "Category *",
+                      style: TextStyle(
+                        fontSize: responsive.responsiveFontSize(13),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    SizedBox(height: responsive.spacing(6)),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: InputDecoration(
+                        hintText: 'Select a category',
+                        hintStyle: TextStyle(fontSize: responsive.responsiveFontSize(13)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.category),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      items: _categories.map((category) {
+                        return DropdownMenuItem<String>(
+                          value: category['value'],
+                          child: Text(category['label']!),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedCategory = value;
+                        });
+                      },
+                    ),
+
                     SizedBox(height: responsive.spacing(20)),
 
                     // Image Upload Section
                     Text(
-                      "Service Image *",
+                      "Service Image (Optional)",
                       style: TextStyle(
                         fontSize: responsive.responsiveFontSize(14),
                         fontWeight: FontWeight.bold,
@@ -594,11 +682,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         SizedBox(width: responsive.spacing(12)),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: _uploadFeature,
-                            icon: const Icon(Icons.upload, color: Colors.white),
-                            label: const Text('Upload Service', style: TextStyle(color: Colors.white)),
+                            onPressed: _isUploading ? null : _uploadFeature,
+                            icon: _isUploading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Icon(Icons.upload, color: Colors.white),
+                            label: Text(
+                              _isUploading ? 'Uploading...' : 'Upload Service',
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                              backgroundColor: _isUploading ? Colors.grey : Colors.green,
                               padding: EdgeInsets.symmetric(vertical: responsive.spacing(14)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
