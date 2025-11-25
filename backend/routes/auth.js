@@ -4,7 +4,8 @@ const {
   register,
   login,
   getMe,
-  logout
+  logout,
+  seedTestAccounts
 } = require('../controllers/auth');
 const { protect } = require('../middleware/auth');
 
@@ -34,5 +35,6 @@ router.post(
 
 router.get('/me', protect, getMe);
 router.post('/logout', logout);
+router.post('/seed-test-accounts', seedTestAccounts);
 
 module.exports = router;

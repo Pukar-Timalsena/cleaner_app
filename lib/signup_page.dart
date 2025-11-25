@@ -22,6 +22,13 @@ class _SignupState extends State<Signup> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    // Seed test accounts on first load if they don't exist
+    ApiService.seedTestAccounts();
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

@@ -78,4 +78,17 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
   }
+
+  static Future<void> seedTestAccounts() async {
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/auth/seed-test-accounts'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+    } catch (e) {
+      // Silently fail - test accounts may already exist
+    }
+  }
 }
