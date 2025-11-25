@@ -91,4 +91,17 @@ class ApiService {
       // Silently fail - test accounts may already exist
     }
   }
+
+  static Future<void> seedServices() async {
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/services/seed'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+    } catch (e) {
+      // Silently fail - services may already exist
+    }
+  }
 }

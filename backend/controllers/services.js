@@ -138,3 +138,77 @@ exports.getServiceReviews = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Seed services if collection is empty
+// @route   POST /api/services/seed
+// @access  Public
+exports.seedServices = async (req, res, next) => {
+  try {
+    const count = await Service.countDocuments();
+
+    if (count > 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Services already exist',
+        seeded: false
+      });
+    }
+
+    const services = [
+      {
+        title: 'House Cleaning',
+        description: 'Professional house cleaning service to keep your home spotless and fresh.',
+        category: 'house-cleaning',
+        image: 'assets/cleaning.jpg',
+        basePrice: 1500,
+        rating: 4.4,
+        reviewCount: 10,
+        location: 'Kathmandu, Nepal',
+        isActive: true
+      },
+      {
+        title: 'House Painting',
+        description: 'Expert house painting service for interior and exterior walls.',
+        category: 'house-painting',
+        image: 'assets/house.jpg',
+        basePrice: 1500,
+        rating: 4.4,
+        reviewCount: 10,
+        location: 'Kathmandu, Nepal',
+        isActive: true
+      },
+      {
+        title: 'Carpet Cleaning',
+        description: 'Deep carpet cleaning to remove stains, dirt, and allergens.',
+        category: 'carpet-cleaning',
+        image: 'assets/carpet.jpg',
+        basePrice: 1500,
+        rating: 4.4,
+        reviewCount: 10,
+        location: 'Kathmandu, Nepal',
+        isActive: true
+      },
+      {
+        title: 'Sanitary Cleaning',
+        description: 'Thorough sanitary and bathroom cleaning for a hygienic environment.',
+        category: 'sanitary-cleaning',
+        image: 'assets/drapery.jpg',
+        basePrice: 1500,
+        rating: 4.4,
+        reviewCount: 10,
+        location: 'Kathmandu, Nepal',
+        isActive: true
+      }
+    ];
+
+    await Service.insertMany(services);
+
+    res.status(201).json({
+      success: true,
+      message: `Seeded ${services.length} services`,
+      seeded: true
+    });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -5,11 +5,14 @@ const {
   createService,
   updateService,
   deleteService,
-  getServiceReviews
+  getServiceReviews,
+  seedServices
 } = require('../controllers/services');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
+
+router.post('/seed', seedServices);
 
 router.route('/')
   .get(getServices)

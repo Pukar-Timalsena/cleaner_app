@@ -3,6 +3,7 @@ import 'activity.dart';
 import 'responsive_utils.dart';
 import 'feature_details.dart';
 import 'login_page.dart';
+import 'services/api_service.dart';
 
 class Homepage extends StatefulWidget {
   final String? userName;
@@ -26,6 +27,13 @@ class Homepage extends StatefulWidget {
 
 class _HomepageState extends State<Homepage> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Seed services if collection is empty
+    ApiService.seedServices();
+  }
 
   // Featured services list
   final List<Map<String, dynamic>> featuredList = [
