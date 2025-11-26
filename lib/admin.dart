@@ -14,64 +14,28 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   int _currentIndex = 0;
-  int totalUsers = 125;
-  int totalCleaners = 34;
-  int totalServices = 12;
-  int activeBookings = 48;
 
-  List<Map<String, dynamic>> tasks = [
-    {"title": "Clean Lobby", "status": "Ongoing", "cleaner": "John Doe", "time": "2 hours ago"},
-    {"title": "Clean Room 101", "status": "Completed", "cleaner": "Jane Smith", "time": "5 hours ago"},
-    {"title": "Carpet Cleaning", "status": "Pending", "cleaner": "Mike Johnson", "time": "1 day ago"},
-    {"title": "Window Cleaning", "status": "Ongoing", "cleaner": "Sarah Williams", "time": "3 hours ago"},
-  ];
+  // Dashboard stats - now dynamic
+  int totalUsers = 0;
+  int totalCleaners = 0;
+  int totalServices = 0;
+  int activeBookings = 0;
+  int completedBookings = 0;
+  double totalRevenue = 0;
 
-  // Bookings from customers
-  List<Map<String, dynamic>> bookings = [
-    {
-      "id": "BK001",
-      "service": "House Cleaning",
-      "customer": "John Smith",
-      "phone": "+977 9812345678",
-      "address": "Kathmandu, Thamel",
-      "date": "2024-11-22",
-      "time": "10:00 AM",
-      "status": "Pending",
-      "assignedCleaner": null,
-    },
-    {
-      "id": "BK002",
-      "service": "Carpet Cleaning",
-      "customer": "Sarah Johnson",
-      "phone": "+977 9823456789",
-      "address": "Lalitpur, Jawalakhel",
-      "date": "2024-11-22",
-      "time": "2:00 PM",
-      "status": "Pending",
-      "assignedCleaner": null,
-    },
-    {
-      "id": "BK003",
-      "service": "Window Cleaning",
-      "customer": "Mike Davis",
-      "phone": "+977 9834567890",
-      "address": "Bhaktapur, Durbar Square",
-      "date": "2024-11-23",
-      "time": "11:00 AM",
-      "status": "Assigned",
-      "assignedCleaner": "Jane Cleaner",
-    },
-  ];
+  // Dynamic data lists
+  List<Map<String, dynamic>> bookings = [];
+  List<Map<String, dynamic>> cleaners = [];
 
-  // Available cleaners
-  List<String> availableCleaners = [
-    "Jane Cleaner",
-    "John Doe",
-    "Mike Johnson",
-    "Sarah Williams",
-    "Tom Brown",
-  ];
+  // Loading states
+  bool _isLoadingDashboard = true;
+  bool _isLoadingBookings = true;
+  bool _isLoadingCleaners = true;
 
+  // Admin user data
+  Map<String, dynamic>? _adminUser;
+
+  // Service upload controllers
   final TextEditingController _featureController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -88,6 +52,93 @@ class _AdminDashboardState extends State<AdminDashboard> {
     {'value': 'house-painting', 'label': 'House Painting'},
     {'value': 'other', 'label': 'Other'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllData();
+  }
+
+  Future<void> _loadAllData() async {
+    await Future.wait([
+      _loadDashboardStats(),
+      _loadBookings(),
+      _loadCleaners(),
+      _loadAdminUser(),
+    ]);
+  }
+
+  Future<void> _loadDashboardStats() async {
+    try {
+      final stats = await ApiService.getDashboardStats();
+      setState(() {
+        totalUsers = stats['totalUsers'] ?? 0;
+        totalCleaners = stats['totalCleaners'] ?? 0;
+        totalServices = stats['totalServices'] ?? 0;
+        activeBookings = stats['activeBookings'] ?? 0;
+        completedBookings = stats['completedBookings'] ?? 0;
+        totalRevenue = (stats['totalRevenue'] ?? 0).toDouble();
+        _isLoadingDashboard = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingDashboard = false;
+      });
+      _showError('Failed to load dashboard stats: $e');
+    }
+  }
+
+  Future<void> _loadBookings() async {
+    try {
+      final bookingsList = await ApiService.getAdminBookings();
+      setState(() {
+        bookings = bookingsList.map((b) => Map<String, dynamic>.from(b)).toList();
+        _isLoadingBookings = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingBookings = false;
+      });
+      _showError('Failed to load bookings: $e');
+    }
+  }
+
+  Future<void> _loadCleaners() async {
+    try {
+      final cleanersList = await ApiService.getCleaners();
+      setState(() {
+        cleaners = cleanersList.map((c) => Map<String, dynamic>.from(c)).toList();
+        _isLoadingCleaners = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingCleaners = false;
+      });
+      _showError('Failed to load cleaners: $e');
+    }
+  }
+
+  Future<void> _loadAdminUser() async {
+    try {
+      final userData = await ApiService.getUserData();
+      setState(() {
+        _adminUser = userData;
+      });
+    } catch (e) {
+      // Silently fail - user data might not be available
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   Future<void> _pickImage() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -150,6 +201,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _image = null;
         _selectedCategory = null;
       });
+
+      // Refresh dashboard stats
+      _loadDashboardStats();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -164,16 +218,25 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  void _assignCleaner(int bookingIndex, String? cleaner) {
-    if (cleaner != null) {
-      setState(() {
-        bookings[bookingIndex]['assignedCleaner'] = cleaner;
-        bookings[bookingIndex]['status'] = 'Assigned';
-      });
+  Future<void> _assignCleaner(String bookingId, String cleanerId) async {
+    try {
+      await ApiService.assignCleanerToBooking(bookingId, cleanerId);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cleaner assigned successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh bookings and dashboard
+      await _loadBookings();
+      await _loadDashboardStats();
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Task assigned to $cleaner successfully!'),
-          backgroundColor: Colors.green,
+          content: Text('Failed to assign cleaner: $e'),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -192,81 +255,173 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final responsive = context.responsive;
 
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(responsive.spacing(20)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Admin Dashboard",
-                        style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(24),
-                          fontWeight: FontWeight.bold,
+      child: RefreshIndicator(
+        onRefresh: () async {
+          await _loadDashboardStats();
+          await _loadBookings();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.all(responsive.spacing(20)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Admin Dashboard",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(24),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: responsive.spacing(4)),
-                      Text(
-                        "Manage your cleaning service",
-                        style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(14),
-                          color: Colors.grey.shade600,
+                        SizedBox(height: responsive.spacing(4)),
+                        Text(
+                          "Manage your cleaning service",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(14),
+                            color: Colors.grey.shade600,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  Icon(Icons.notifications_outlined, size: responsive.responsiveFontSize(28)),
-                ],
-              ),
-
-              SizedBox(height: responsive.spacing(25)),
-
-              // Stats Cards Grid
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: responsive.isMobile ? 2 : 4,
-                crossAxisSpacing: responsive.spacing(15),
-                mainAxisSpacing: responsive.spacing(15),
-                childAspectRatio: responsive.isMobile ? 1.3 : 1.5,
-                children: [
-                  _statCard("Total Users", totalUsers.toString(), Icons.people, Colors.blue, responsive),
-                  _statCard("Cleaners", totalCleaners.toString(), Icons.cleaning_services, Colors.green, responsive),
-                  _statCard("Services", totalServices.toString(), Icons.home_repair_service, Colors.orange, responsive),
-                  _statCard("Bookings", activeBookings.toString(), Icons.book_online, Colors.purple, responsive),
-                ],
-              ),
-
-              SizedBox(height: responsive.spacing(30)),
-
-              // Recent Tasks
-              Text(
-                "Recent Tasks",
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(18),
-                  fontWeight: FontWeight.bold,
+                      ],
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.refresh, size: responsive.responsiveFontSize(28)),
+                      onPressed: () async {
+                        setState(() {
+                          _isLoadingDashboard = true;
+                        });
+                        await _loadDashboardStats();
+                      },
+                    ),
+                  ],
                 ),
-              ),
 
-              SizedBox(height: responsive.spacing(15)),
+                SizedBox(height: responsive.spacing(25)),
 
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: tasks.length,
-                itemBuilder: (context, index) {
-                  final task = tasks[index];
-                  return _taskCard(task, responsive);
-                },
-              ),
-            ],
+                // Stats Cards Grid
+                _isLoadingDashboard
+                    ? const Center(child: CircularProgressIndicator())
+                    : GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: responsive.isMobile ? 2 : 4,
+                        crossAxisSpacing: responsive.spacing(15),
+                        mainAxisSpacing: responsive.spacing(15),
+                        childAspectRatio: responsive.isMobile ? 1.3 : 1.5,
+                        children: [
+                          _statCard("Total Users", totalUsers.toString(), Icons.people, Colors.blue, responsive),
+                          _statCard("Cleaners", totalCleaners.toString(), Icons.cleaning_services, Colors.green, responsive),
+                          _statCard("Services", totalServices.toString(), Icons.home_repair_service, Colors.orange, responsive),
+                          _statCard("Active Bookings", activeBookings.toString(), Icons.book_online, Colors.purple, responsive),
+                        ],
+                      ),
+
+                SizedBox(height: responsive.spacing(20)),
+
+                // Revenue Card
+                if (!_isLoadingDashboard)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(responsive.spacing(16)),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.teal, Colors.teal.shade300],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Total Revenue",
+                              style: TextStyle(
+                                fontSize: responsive.responsiveFontSize(14),
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                            SizedBox(height: responsive.spacing(4)),
+                            Text(
+                              "NPR ${totalRevenue.toStringAsFixed(0)}",
+                              style: TextStyle(
+                                fontSize: responsive.responsiveFontSize(28),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              "Completed",
+                              style: TextStyle(
+                                fontSize: responsive.responsiveFontSize(12),
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                            Text(
+                              "$completedBookings bookings",
+                              style: TextStyle(
+                                fontSize: responsive.responsiveFontSize(16),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                SizedBox(height: responsive.spacing(30)),
+
+                // Recent Bookings
+                Text(
+                  "Recent Bookings",
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(18),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                SizedBox(height: responsive.spacing(15)),
+
+                _isLoadingBookings
+                    ? const Center(child: CircularProgressIndicator())
+                    : bookings.isEmpty
+                        ? Center(
+                            child: Text(
+                              "No bookings yet",
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: responsive.responsiveFontSize(14),
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: bookings.length > 5 ? 5 : bookings.length,
+                            itemBuilder: (context, index) {
+                              final booking = bookings[index];
+                              return _recentBookingCard(booking, responsive);
+                            },
+                          ),
+              ],
+            ),
           ),
         ),
       ),
@@ -318,14 +473,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _taskCard(Map<String, dynamic> task, ResponsiveUtils responsive) {
+  Widget _recentBookingCard(Map<String, dynamic> booking, ResponsiveUtils responsive) {
+    final service = booking['service'] as Map<String, dynamic>?;
+    final customer = booking['customer'] as Map<String, dynamic>?;
+    final status = booking['status'] ?? 'pending';
+
     Color statusColor;
-    switch (task['status']) {
-      case 'Completed':
+    switch (status) {
+      case 'completed':
         statusColor = Colors.green;
         break;
-      case 'Ongoing':
+      case 'in_progress':
+      case 'assigned':
         statusColor = Colors.orange;
+        break;
+      case 'cancelled':
+        statusColor = Colors.red;
         break;
       default:
         statusColor = Colors.grey;
@@ -362,7 +525,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task['title'],
+                  service?['title'] ?? 'Unknown Service',
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(15),
                     fontWeight: FontWeight.bold,
@@ -370,7 +533,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 SizedBox(height: responsive.spacing(4)),
                 Text(
-                  "Assigned to: ${task['cleaner']}",
+                  "Customer: ${customer?['name'] ?? 'Unknown'}",
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(13),
                     color: Colors.grey.shade600,
@@ -378,7 +541,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 SizedBox(height: responsive.spacing(2)),
                 Text(
-                  task['time'],
+                  booking['bookingId'] ?? '',
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(12),
                     color: Colors.grey.shade500,
@@ -398,10 +561,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               border: Border.all(color: statusColor),
             ),
             child: Text(
-              task['status'],
+              status.toString().replaceAll('_', ' ').toUpperCase(),
               style: TextStyle(
                 color: statusColor,
-                fontSize: responsive.responsiveFontSize(12),
+                fontSize: responsive.responsiveFontSize(11),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -729,7 +892,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: Column(
             children: [
               SizedBox(height: responsive.spacing(20)),
-              
+
               CircleAvatar(
                 radius: responsive.profileAvatarRadius * 1.5,
                 backgroundColor: Colors.blue.shade200,
@@ -743,7 +906,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               SizedBox(height: responsive.spacing(20)),
 
               Text(
-                "Admin User",
+                _adminUser?['name'] ?? "Admin User",
                 style: TextStyle(
                     fontSize: responsive.responsiveFontSize(26),
                     fontWeight: FontWeight.bold),
@@ -770,11 +933,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
               SizedBox(height: responsive.spacing(30)),
 
-              _infoRow(Icons.email, "Email", "admin@test.com", responsive),
+              _infoRow(Icons.email, "Email", _adminUser?['email'] ?? "admin@test.com", responsive),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.phone, "Phone", "+977 9876543210", responsive),
+              _infoRow(Icons.phone, "Phone", _adminUser?['phone'] ?? "+977 9876543210", responsive),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.location_on, "Address", "Kathmandu, Nepal", responsive),
+              _infoRow(Icons.location_on, "Address", _adminUser?['address'] ?? "Kathmandu, Nepal", responsive),
 
               SizedBox(height: responsive.spacing(30)),
 
@@ -788,11 +951,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const Loginpage()),
-                  );
+                onPressed: () async {
+                  await ApiService.clearAllData();
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Loginpage()),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.logout, color: Colors.white),
                 label: Text(
@@ -843,103 +1009,139 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _bookingsBody() {
     final responsive = context.responsive;
 
+    final pendingCount = bookings.where((b) => b['status'] == 'pending').length;
+
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(responsive.spacing(20)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Customer Bookings",
-                        style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(24),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: responsive.spacing(4)),
-                      Text(
-                        "Assign cleaners to customer bookings",
-                        style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(14),
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.all(responsive.spacing(8)),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      "${bookings.where((b) => b['status'] == 'Pending').length} Pending",
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                        fontWeight: FontWeight.bold,
-                        fontSize: responsive.responsiveFontSize(14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: responsive.spacing(10)),
-
-              // Instructions
-              Container(
-                padding: EdgeInsets.all(responsive.spacing(12)),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
+      child: RefreshIndicator(
+        onRefresh: () async {
+          await _loadBookings();
+          await _loadCleaners();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.all(responsive.spacing(20)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                    SizedBox(width: responsive.spacing(8)),
-                    Expanded(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Customer Bookings",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(24),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: responsive.spacing(4)),
+                        Text(
+                          "Assign cleaners to customer bookings",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(14),
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(responsive.spacing(8)),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Text(
-                        "Review customer bookings and assign available cleaners to each task.",
+                        "$pendingCount Pending",
                         style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(12),
-                          color: Colors.blue.shade900,
+                          color: Colors.orange.shade900,
+                          fontWeight: FontWeight.bold,
+                          fontSize: responsive.responsiveFontSize(14),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              SizedBox(height: responsive.spacing(20)),
+                SizedBox(height: responsive.spacing(10)),
 
-              // Booking Cards
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: bookings.length,
-                itemBuilder: (context, index) {
-                  final booking = bookings[index];
-                  return _bookingCard(booking, index, responsive);
-                },
-              ),
-            ],
+                // Instructions
+                Container(
+                  padding: EdgeInsets.all(responsive.spacing(12)),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                      SizedBox(width: responsive.spacing(8)),
+                      Expanded(
+                        child: Text(
+                          "Review customer bookings and assign available cleaners to each task.",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(12),
+                            color: Colors.blue.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: responsive.spacing(20)),
+
+                // Booking Cards
+                _isLoadingBookings
+                    ? const Center(child: CircularProgressIndicator())
+                    : bookings.isEmpty
+                        ? Center(
+                            child: Column(
+                              children: [
+                                Icon(Icons.inbox_outlined, size: 60, color: Colors.grey.shade400),
+                                SizedBox(height: responsive.spacing(12)),
+                                Text(
+                                  "No bookings yet",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: responsive.responsiveFontSize(16),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: bookings.length,
+                            itemBuilder: (context, index) {
+                              final booking = bookings[index];
+                              return _bookingCard(booking, responsive);
+                            },
+                          ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _bookingCard(Map<String, dynamic> booking, int index, ResponsiveUtils responsive) {
-    Color statusColor = booking['status'] == 'Assigned' ? Colors.green : Colors.orange;
+  Widget _bookingCard(Map<String, dynamic> booking, ResponsiveUtils responsive) {
+    final service = booking['service'] as Map<String, dynamic>?;
+    final customer = booking['customer'] as Map<String, dynamic>?;
+    final cleaner = booking['cleaner'] as Map<String, dynamic>?;
+    final status = booking['status'] ?? 'pending';
+
+    Color statusColor = status == 'assigned' || status == 'in_progress' || status == 'completed'
+        ? Colors.green
+        : status == 'cancelled'
+            ? Colors.red
+            : Colors.orange;
 
     return Container(
       margin: EdgeInsets.only(bottom: responsive.spacing(16)),
@@ -975,7 +1177,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      booking['id'],
+                      booking['bookingId'] ?? 'N/A',
                       style: TextStyle(
                         color: Colors.blue.shade900,
                         fontSize: responsive.responsiveFontSize(12),
@@ -996,7 +1198,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   border: Border.all(color: statusColor),
                 ),
                 child: Text(
-                  booking['status'],
+                  status.toString().replaceAll('_', ' ').toUpperCase(),
                   style: TextStyle(
                     color: statusColor,
                     fontSize: responsive.responsiveFontSize(11),
@@ -1011,7 +1213,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
           // Service Name
           Text(
-            booking['service'],
+            service?['title'] ?? 'Unknown Service',
             style: TextStyle(
               fontSize: responsive.responsiveFontSize(17),
               fontWeight: FontWeight.bold,
@@ -1026,7 +1228,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Icon(Icons.person, size: 16, color: Colors.grey.shade600),
               SizedBox(width: responsive.spacing(6)),
               Text(
-                booking['customer'],
+                customer?['name'] ?? 'Unknown',
                 style: TextStyle(
                   fontSize: responsive.responsiveFontSize(14),
                   color: Colors.grey.shade700,
@@ -1043,7 +1245,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Icon(Icons.phone, size: 16, color: Colors.grey.shade600),
               SizedBox(width: responsive.spacing(6)),
               Text(
-                booking['phone'],
+                booking['phone'] ?? customer?['phone'] ?? 'N/A',
                 style: TextStyle(
                   fontSize: responsive.responsiveFontSize(13),
                   color: Colors.grey.shade600,
@@ -1060,7 +1262,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               SizedBox(width: responsive.spacing(6)),
               Expanded(
                 child: Text(
-                  booking['address'],
+                  booking['address'] ?? 'N/A',
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(13),
                     color: Colors.grey.shade600,
@@ -1085,7 +1287,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Icon(Icons.calendar_today, size: 16, color: Colors.blue.shade700),
                 SizedBox(width: responsive.spacing(6)),
                 Text(
-                  booking['date'],
+                  booking['bookingDate'] ?? 'N/A',
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(13),
                     fontWeight: FontWeight.w500,
@@ -1095,7 +1297,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 Icon(Icons.access_time, size: 16, color: Colors.blue.shade700),
                 SizedBox(width: responsive.spacing(6)),
                 Text(
-                  booking['time'],
+                  booking['bookingTime'] ?? 'N/A',
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(13),
                     fontWeight: FontWeight.w500,
@@ -1108,63 +1310,98 @@ class _AdminDashboardState extends State<AdminDashboard> {
           SizedBox(height: responsive.spacing(16)),
 
           // Cleaner Assignment Section
-          Text(
-            "Assign Cleaner:",
-            style: TextStyle(
-              fontSize: responsive.responsiveFontSize(13),
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade800,
-            ),
-          ),
-
-          SizedBox(height: responsive.spacing(8)),
-
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: responsive.spacing(12)),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value: booking['assignedCleaner'],
-                hint: Text(
-                  'Select a cleaner',
-                  style: TextStyle(
-                    fontSize: responsive.responsiveFontSize(13),
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                icon: Icon(Icons.arrow_drop_down, color: Colors.blue.shade700),
-                items: availableCleaners.map((String cleaner) {
-                  return DropdownMenuItem<String>(
-                    value: cleaner,
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 12,
-                          backgroundColor: Colors.green.shade100,
-                          child: Icon(Icons.person, size: 14, color: Colors.green.shade700),
-                        ),
-                        SizedBox(width: responsive.spacing(8)),
-                        Text(
-                          cleaner,
-                          style: TextStyle(fontSize: responsive.responsiveFontSize(13)),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  _assignCleaner(index, newValue);
-                },
+          if (status == 'pending') ...[
+            Text(
+              "Assign Cleaner:",
+              style: TextStyle(
+                fontSize: responsive.responsiveFontSize(13),
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
               ),
             ),
-          ),
 
-          if (booking['assignedCleaner'] != null) ...[
+            SizedBox(height: responsive.spacing(8)),
+
+            _isLoadingCleaners
+                ? const Center(child: CircularProgressIndicator())
+                : cleaners.isEmpty
+                    ? Text(
+                        "No cleaners available",
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: responsive.responsiveFontSize(13),
+                        ),
+                      )
+                    : Container(
+                        padding: EdgeInsets.symmetric(horizontal: responsive.spacing(12)),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: null,
+                            hint: Text(
+                              'Select a cleaner',
+                              style: TextStyle(
+                                fontSize: responsive.responsiveFontSize(13),
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            icon: Icon(Icons.arrow_drop_down, color: Colors.blue.shade700),
+                            items: cleaners.map((cleaner) {
+                              return DropdownMenuItem<String>(
+                                value: cleaner['_id'],
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: Colors.green.shade100,
+                                      child: Icon(Icons.person, size: 14, color: Colors.green.shade700),
+                                    ),
+                                    SizedBox(width: responsive.spacing(8)),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            cleaner['name'] ?? 'Unknown',
+                                            style: TextStyle(fontSize: responsive.responsiveFontSize(13)),
+                                          ),
+                                          if (cleaner['rating'] != null)
+                                            Row(
+                                              children: [
+                                                Icon(Icons.star, size: 12, color: Colors.amber),
+                                                Text(
+                                                  ' ${cleaner['rating']}',
+                                                  style: TextStyle(
+                                                    fontSize: responsive.responsiveFontSize(11),
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? cleanerId) {
+                              if (cleanerId != null) {
+                                _assignCleaner(booking['_id'], cleanerId);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+          ],
+
+          if (cleaner != null) ...[
             SizedBox(height: responsive.spacing(12)),
             Container(
               padding: EdgeInsets.all(responsive.spacing(10)),
@@ -1177,12 +1414,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 children: [
                   Icon(Icons.check_circle, color: Colors.green.shade700, size: 18),
                   SizedBox(width: responsive.spacing(8)),
-                  Text(
-                    "Assigned to: ${booking['assignedCleaner']}",
-                    style: TextStyle(
-                      color: Colors.green.shade900,
-                      fontSize: responsive.responsiveFontSize(13),
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Assigned to: ${cleaner['name'] ?? 'Unknown'}",
+                          style: TextStyle(
+                            color: Colors.green.shade900,
+                            fontSize: responsive.responsiveFontSize(13),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (cleaner['phone'] != null)
+                          Text(
+                            cleaner['phone'],
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontSize: responsive.responsiveFontSize(12),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -1193,7 +1445,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
   }
-
 
   // ---------------- MAIN UI ----------------
   @override

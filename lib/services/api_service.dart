@@ -152,4 +152,139 @@ class ApiService {
       throw Exception('Failed to load services');
     }
   }
+
+  // ===================== ADMIN API METHODS =====================
+
+  // Get dashboard statistics
+  static Future<Map<String, dynamic>> getDashboardStats() async {
+    final token = await getToken();
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/admin/dashboard'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? {};
+    } else {
+      throw Exception('Failed to load dashboard stats');
+    }
+  }
+
+  // Get all bookings (admin)
+  static Future<List<dynamic>> getAdminBookings({String? status}) async {
+    final token = await getToken();
+    String url = '$_baseUrl/admin/bookings';
+    if (status != null) {
+      url += '?status=$status';
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load bookings');
+    }
+  }
+
+  // Get all cleaners (admin)
+  static Future<List<dynamic>> getCleaners() async {
+    final token = await getToken();
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/admin/cleaners'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load cleaners');
+    }
+  }
+
+  // Assign cleaner to booking
+  static Future<Map<String, dynamic>> assignCleanerToBooking(String bookingId, String cleanerId) async {
+    final token = await getToken();
+
+    final response = await http.put(
+      Uri.parse('$_baseUrl/admin/bookings/$bookingId/assign'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'cleanerId': cleanerId}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? {};
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Failed to assign cleaner');
+    }
+  }
+
+  // Get all users (admin)
+  static Future<List<dynamic>> getUsers({String? role}) async {
+    final token = await getToken();
+    String url = '$_baseUrl/admin/users';
+    if (role != null) {
+      url += '?role=$role';
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load users');
+    }
+  }
+
+  // Save user data to SharedPreferences
+  static Future<void> saveUserData(Map<String, dynamic> userData) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userData', jsonEncode(userData));
+  }
+
+  // Get user data from SharedPreferences
+  static Future<Map<String, dynamic>?> getUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userDataString = prefs.getString('userData');
+    if (userDataString != null) {
+      return jsonDecode(userDataString);
+    }
+    return null;
+  }
+
+  // Clear all saved data (for logout)
+  static Future<void> clearAllData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('userData');
+  }
 }

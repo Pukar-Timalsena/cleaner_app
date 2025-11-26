@@ -35,6 +35,10 @@ class _LoginpageState extends State<Loginpage> {
         _passwordController.clear();
 
         final user = result['user'];
+
+        // Save user data for later use
+        await ApiService.saveUserData(user);
+
         Widget destination;
         switch (user['role']) {
           case 'admin':
