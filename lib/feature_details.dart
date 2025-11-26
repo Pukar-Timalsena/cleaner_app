@@ -3,28 +3,62 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'booking.dart';
 
 class ServiceDetailCard extends StatelessWidget {
-  const ServiceDetailCard({super.key});
+  final Map<String, dynamic> service;
+  final String image;
+
+  const ServiceDetailCard({
+    super.key,
+    required this.service,
+    required this.image,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final title = service['title'] ?? 'Unknown Service';
+    final description = service['description'] ?? 'Professional cleaning service that makes your space look fresh, spotless, and hygienic. With eco-friendly methods and skilled cleaners, we ensure a cleaner, healthier home or workspace.';
+    final rating = (service['rating'] ?? 4.0).toDouble();
+    final reviewCount = service['reviewCount'] ?? 0;
+    final location = service['location'] ?? 'Kathmandu';
+    final price = service['basePrice'] ?? 0;
+
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Top Image with rounded bottom corners
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-                child: Image.asset(
-                  "assets/carpet.jpg",
-                  width: double.infinity,
-                  height: 280,
-                  fit: BoxFit.cover,
-                ),
+              // Top Image with rounded bottom corners and back button
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                    ),
+                    child: Image.asset(
+                      image,
+                      width: double.infinity,
+                      height: 280,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  // Back button
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.arrow_back, color: Colors.black),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 16),
@@ -48,9 +82,9 @@ class ServiceDetailCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Title
-                    const Text(
-                      "Carpet Cleaning (10)",
-                      style: TextStyle(
+                    Text(
+                      "$title ($reviewCount)",
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
@@ -62,16 +96,16 @@ class ServiceDetailCard extends StatelessWidget {
                     Row(
                       children: [
                         RatingBarIndicator(
-                          rating: 4.4,
+                          rating: rating,
                           itemCount: 5,
                           itemSize: 18,
                           itemBuilder: (context, _) =>
                               const Icon(Icons.star, color: Colors.orange),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          "4.4",
-                          style: TextStyle(
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -82,13 +116,13 @@ class ServiceDetailCard extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     // Location
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.location_on, size: 18, color: Colors.grey),
-                        SizedBox(width: 4),
+                        const Icon(Icons.location_on, size: 18, color: Colors.grey),
+                        const SizedBox(width: 4),
                         Text(
-                          "Kathmandu",
-                          style: TextStyle(
+                          location,
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
                           ),
@@ -100,7 +134,7 @@ class ServiceDetailCard extends StatelessWidget {
 
                     // About us
                     const Text(
-                      "About us",
+                      "About this service",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -109,89 +143,37 @@ class ServiceDetailCard extends StatelessWidget {
 
                     const SizedBox(height: 8),
 
-                    // Description with Read more
-                    const Text(
-                      "We provide professional carpet cleaning services "
-                      "that make your carpets look fresh, spotless, and "
-                      "hygienic. With eco-friendly methods and skilled "
-                      "cleaners, we ensure a cleaner, healthier home or "
-                      "workspace...",
-                      style: TextStyle(
+                    // Description
+                    Text(
+                      description,
+                      style: const TextStyle(
                         fontSize: 13,
                         height: 1.5,
                         color: Colors.black87,
                       ),
                     ),
 
-                    const SizedBox(height: 4),
-
-                    GestureDetector(
-                      onTap: () {
-                        // Show full description
-                      },
-                      child: const Text(
-                        "Read more",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-
                     const SizedBox(height: 20),
 
-                    // Cleaner Profile Row
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Colors.green.shade100,
-                          child: Icon(
-                            Icons.person,
-                            size: 28,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            "Hari Bhusal",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-
-                        // Message Button
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: IconButton(
-                            onPressed: () {},
-                            icon: const Icon(Icons.message_outlined, size: 20),
-                            color: Colors.black87,
-                          ),
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        // Call Button
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: IconButton(
-                            onPressed: () {},
-                            icon: const Icon(Icons.phone_outlined, size: 20),
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ],
+                    // Service Features
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          _featureRow(Icons.eco, "Eco-friendly cleaning products"),
+                          const SizedBox(height: 8),
+                          _featureRow(Icons.verified_user, "Verified & trained cleaners"),
+                          const SizedBox(height: 8),
+                          _featureRow(Icons.access_time, "Flexible scheduling"),
+                          const SizedBox(height: 8),
+                          _featureRow(Icons.thumb_up, "100% satisfaction guarantee"),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 24),
@@ -214,8 +196,11 @@ class ServiceDetailCard extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (context) =>
-                                        const BookingInfoPage()),
+                                  builder: (context) => BookingInfoPage(
+                                    service: service,
+                                    image: image,
+                                  ),
+                                ),
                               );
                             },
                             child: const Text(
@@ -232,9 +217,9 @@ class ServiceDetailCard extends StatelessWidget {
                         const SizedBox(width: 16),
 
                         // Price
-                        const Text(
-                          "NPR 1500",
-                          style: TextStyle(
+                        Text(
+                          "NPR $price",
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
@@ -250,6 +235,23 @@ class ServiceDetailCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _featureRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.green.shade700),
+        const SizedBox(width: 10),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.green.shade900,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

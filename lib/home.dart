@@ -28,209 +28,272 @@ class Homepage extends StatefulWidget {
 class _HomepageState extends State<Homepage> {
   int _currentIndex = 0;
 
+  // Dynamic services list
+  List<Map<String, dynamic>> services = [];
+  bool _isLoadingServices = true;
+
+  // User data from storage
+  Map<String, dynamic>? _userData;
+
   @override
   void initState() {
     super.initState();
-    // Seed services if collection is empty
-    ApiService.seedServices();
+    _loadData();
   }
 
-  // Featured services list
-  final List<Map<String, dynamic>> featuredList = [
-    {
-      "image": "assets/cleaning.jpg",
-      "title": "House Cleaning",
-      "location": "Kathmandu",
-      "rating": 4.4,
-      "reviews": 10,
-      "price": 1500,
-    },
-    {
-      "image": "assets/house.jpg",
-      "title": "House Painting",
-      "location": "Kathmandu",
-      "rating": 4.4,
-      "reviews": 10,
-      "price": 1500,
-    },
-    {
-      "image": "assets/carpet.jpg",
-      "title": "Carpet Cleaning",
-      "location": "Kathmandu",
-      "rating": 4.4,
-      "reviews": 10,
-      "price": 1500,
-    },
-    {
-      "image": "assets/drapery.jpg",
-      "title": "Sanitary Cleaning",
-      "location": "Kathmandu",
-      "rating": 4.4,
-      "reviews": 10,
-      "price": 1500,
-    },
-  ];
+  Future<void> _loadData() async {
+    await Future.wait([
+      _loadServices(),
+      _loadUserData(),
+    ]);
+  }
+
+  Future<void> _loadServices() async {
+    try {
+      // Seed services first if needed
+      await ApiService.seedServices();
+
+      final servicesList = await ApiService.getServices();
+      setState(() {
+        services = servicesList.map((s) => Map<String, dynamic>.from(s)).toList();
+        _isLoadingServices = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingServices = false;
+      });
+      _showError('Failed to load services: $e');
+    }
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userData = await ApiService.getUserData();
+      setState(() {
+        _userData = userData;
+      });
+    } catch (e) {
+      // Silently fail - will use widget parameters
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Get user name from storage or widget parameter
+  String get _userName => _userData?['name'] ?? widget.userName ?? "Guest User";
+  String? get _userEmail => _userData?['email'] ?? widget.userEmail;
+  String? get _userPhone => _userData?['phone'] ?? widget.userPhone;
+  String? get _userAddress => _userData?['address'] ?? widget.userAddress;
+  String get _userType => _userData?['role']?.toString().toUpperCase() ?? widget.userType ?? "Customer";
+
+  // Get image for service
+  String _getServiceImage(Map<String, dynamic> service) {
+    final category = service['category'] ?? '';
+    switch (category) {
+      case 'house-cleaning':
+        return 'assets/cleaning.jpg';
+      case 'house-painting':
+        return 'assets/house.jpg';
+      case 'carpet-cleaning':
+        return 'assets/carpet.jpg';
+      case 'sanitary-cleaning':
+        return 'assets/drapery.jpg';
+      default:
+        return 'assets/cleaning.jpg';
+    }
+  }
 
   // ---------------- HOME BODY ----------------
   Widget _homeBody() {
     final responsive = context.responsive;
 
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding:
-          EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ---------------- TOP BAR ----------------
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+      child: RefreshIndicator(
+        onRefresh: _loadServices,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ---------------- TOP BAR ----------------
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            _showProfileDialog(context);
+                          },
+                          child: CircleAvatar(
+                            radius: responsive.avatarRadius,
+                            backgroundColor: Colors.green.shade200,
+                            child: Icon(
+                              Icons.person,
+                              size: responsive.avatarRadius - 4,
+                              color: Colors.green.shade900,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: responsive.spacing(10)),
+                        Text(
+                          _userName,
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(16, tabletSize: 18, desktopSize: 20),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Icon(Icons.notifications_none, size: responsive.responsiveFontSize(28)),
+                  ],
+                ),
+
+                SizedBox(height: responsive.spacing(15)),
+
+                // ---------------- SEARCH BAR ----------------
+                Container(
+                  height: responsive.searchBarHeight,
+                  padding: EdgeInsets.symmetric(horizontal: responsive.spacing(12)),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      )
+                    ],
+                  ),
+                  child: Row(
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          _showProfileDialog(context);
-                        },
-                        child: CircleAvatar(
-                          radius: responsive.avatarRadius,
-                          backgroundColor: Colors.green.shade200,
-                          child: Icon(
-                            Icons.person,
-                            size: responsive.avatarRadius - 4,
-                            color: Colors.green.shade900,
+                      Icon(Icons.search, color: Colors.grey),
+                      SizedBox(width: responsive.spacing(10)),
+                      Expanded(
+                        child: Text(
+                          "Search the services",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: responsive.responsiveFontSize(14),
                           ),
                         ),
                       ),
-                      SizedBox(width: responsive.spacing(10)),
-                      Text(
-                        widget.userName ?? "Guest User",
-                        style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(16,
-                              tabletSize: 18, desktopSize: 20),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Icon(Icons.filter_list),
                     ],
                   ),
-                  Icon(Icons.notifications_none,
-                      size: responsive.responsiveFontSize(28)),
-                ],
-              ),
-
-              SizedBox(height: responsive.spacing(15)),
-
-              // ---------------- SEARCH BAR ----------------
-              Container(
-                height: responsive.searchBarHeight,
-                padding:
-                EdgeInsets.symmetric(horizontal: responsive.spacing(12)),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: Colors.grey.shade300),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    )
-                  ],
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.search, color: Colors.grey),
-                    SizedBox(width: responsive.spacing(10)),
-                    Expanded(
-                      child: Text(
-                        "Search the services",
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: responsive.responsiveFontSize(14),
+
+                SizedBox(height: responsive.spacing(20)),
+
+                // ---------------- OUR SERVICES ----------------
+                Text(
+                  "Our Services",
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(18),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: responsive.spacing(12)),
+
+                SizedBox(
+                  height: responsive.spacing(90),
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      serviceIcon("assets/icon1.png", "House Keeping"),
+                      serviceIcon("assets/icon4.png", "Vacuum Service"),
+                      serviceIcon("assets/icons2.png", "Painting"),
+                      serviceIcon("assets/icon3.png", "Sanitary Service"),
+                      Column(
+                        children: [
+                          CircleAvatar(
+                            radius: responsive.avatarRadius,
+                            backgroundColor: Colors.black12,
+                            child: const Icon(Icons.more_horiz),
+                          ),
+                          SizedBox(height: responsive.spacing(6)),
+                          Text("See more",
+                              style: TextStyle(fontSize: responsive.responsiveFontSize(12))),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: responsive.spacing(20)),
+
+                Text(
+                  "Featured Services",
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(18),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                SizedBox(height: responsive.spacing(10)),
+
+                // ---------------- FEATURED CARDS GRID ----------------
+                _isLoadingServices
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(40),
+                          child: CircularProgressIndicator(),
                         ),
-                      ),
-                    ),
-                    Icon(Icons.filter_list),
-                  ],
-                ),
-              ),
+                      )
+                    : services.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.inbox_outlined, size: 60, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    "No services available",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: responsive.responsiveFontSize(16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: services.length,
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: responsive.getGridCrossAxisCount(),
+                              mainAxisExtent: responsive.isMobile ? 260 : 280,
+                              crossAxisSpacing: responsive.spacing(15),
+                              mainAxisSpacing: responsive.spacing(15),
+                            ),
+                            itemBuilder: (context, index) {
+                              final service = services[index];
+                              return serviceCard(
+                                service: service,
+                                image: _getServiceImage(service),
+                              );
+                            },
+                          ),
 
-              SizedBox(height: responsive.spacing(20)),
-
-              // ---------------- OUR SERVICES ----------------
-              Text(
-                "Our Services",
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(18),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: responsive.spacing(12)),
-
-              SizedBox(
-                height: responsive.spacing(90),
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    serviceIcon("assets/icon1.png", "House Keeping"),
-                    serviceIcon("assets/icon4.png", "Vacuum Service"),
-                    serviceIcon("assets/icons2.png", "Painting"),
-                    serviceIcon("assets/icon3.png", "Sanitary Service"),
-                    Column(
-                      children: [
-                        CircleAvatar(
-                          radius: responsive.avatarRadius,
-                          backgroundColor: Colors.black12,
-                          child: const Icon(Icons.more_horiz),
-                        ),
-                        SizedBox(height: responsive.spacing(6)),
-                        Text("See more",
-                            style: TextStyle(
-                                fontSize:
-                                responsive.responsiveFontSize(12))),
-                      ],
-                    )
-                  ],
-                ),
-              ),
-
-              SizedBox(height: responsive.spacing(20)),
-
-              Text(
-                "Featured Services",
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(18),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-
-              SizedBox(height: responsive.spacing(10)),
-
-              // ---------------- FEATURED CARDS GRID ----------------
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: featuredList.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: responsive.getGridCrossAxisCount(),
-                  mainAxisExtent: responsive.isMobile ? 260 : 280,
-                  crossAxisSpacing: responsive.spacing(15),
-                  mainAxisSpacing: responsive.spacing(15),
-                ),
-                itemBuilder: (context, index) {
-                  final item = featuredList[index];
-                  return serviceCard(
-                    image: item["image"],
-                    title: item["title"],
-                    location: item["location"],
-                    price: "Npr ${item['price']}",
-                    rating: item["rating"],
-                    reviews: item["reviews"],
-                  );
-                },
-              ),
-            ],
+                SizedBox(height: responsive.spacing(20)),
+              ],
+            ),
           ),
         ),
       ),
@@ -262,19 +325,27 @@ class _HomepageState extends State<Homepage> {
 
   // ---------------- SERVICE CARD ----------------
   Widget serviceCard({
+    required Map<String, dynamic> service,
     required String image,
-    required String title,
-    required String location,
-    required String price,
-    required double rating,
-    required int reviews,
   }) {
     final responsive = context.responsive;
+    final title = service['title'] ?? 'Unknown Service';
+    final location = service['location'] ?? 'Kathmandu';
+    final rating = (service['rating'] ?? 0).toDouble();
+    final reviews = service['reviewCount'] ?? 0;
+    final price = service['basePrice'] ?? 0;
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const ServiceDetailCard()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ServiceDetailCard(
+              service: service,
+              image: image,
+            ),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -292,8 +363,7 @@ class _HomepageState extends State<Homepage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Image.asset(
                 image,
                 height: responsive.isMobile ? 130 : 150,
@@ -309,8 +379,7 @@ class _HomepageState extends State<Homepage> {
                 SizedBox(width: responsive.spacing(8)),
                 Icon(Icons.star, color: Colors.orange),
                 Text(" $rating ($reviews)",
-                    style: TextStyle(
-                        fontSize: responsive.responsiveFontSize(12))),
+                    style: TextStyle(fontSize: responsive.responsiveFontSize(12))),
               ],
             ),
 
@@ -324,6 +393,8 @@ class _HomepageState extends State<Homepage> {
                   fontSize: responsive.responsiveFontSize(15),
                   fontWeight: FontWeight.w600,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
 
@@ -335,8 +406,7 @@ class _HomepageState extends State<Homepage> {
                 children: [
                   Icon(Icons.location_on, size: 14, color: Colors.grey),
                   Text(location,
-                      style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(12))),
+                      style: TextStyle(fontSize: responsive.responsiveFontSize(12))),
                 ],
               ),
             ),
@@ -346,7 +416,7 @@ class _HomepageState extends State<Homepage> {
             Padding(
               padding: EdgeInsets.all(responsive.spacing(10)),
               child: Text(
-                price,
+                "Npr $price",
                 style: TextStyle(
                   fontSize: responsive.responsiveFontSize(16),
                   fontWeight: FontWeight.bold,
@@ -367,8 +437,7 @@ class _HomepageState extends State<Homepage> {
     showDialog(
       context: context,
       builder: (_) => Dialog(
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: EdgeInsets.all(responsive.spacing(24)),
           child: Column(
@@ -387,7 +456,7 @@ class _HomepageState extends State<Homepage> {
               SizedBox(height: responsive.spacing(16)),
 
               Text(
-                widget.userName ?? "Guest User",
+                _userName,
                 style: TextStyle(
                     fontSize: responsive.responsiveFontSize(22),
                     fontWeight: FontWeight.bold),
@@ -404,7 +473,7 @@ class _HomepageState extends State<Homepage> {
                   border: Border.all(color: Colors.green.shade300),
                 ),
                 child: Text(
-                  widget.userType ?? "Customer",
+                  _userType,
                   style: TextStyle(
                       color: Colors.green.shade900,
                       fontWeight: FontWeight.bold),
@@ -413,23 +482,21 @@ class _HomepageState extends State<Homepage> {
 
               SizedBox(height: responsive.spacing(20)),
 
-              _infoRow(Icons.email, "Email", widget.userEmail),
+              _infoRow(Icons.email, "Email", _userEmail),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.phone, "Phone", widget.userPhone),
+              _infoRow(Icons.phone, "Phone", _userPhone),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.location_on, "Address", widget.userAddress),
+              _infoRow(Icons.location_on, "Address", _userAddress),
 
               SizedBox(height: responsive.spacing(24)),
 
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
-                  padding: EdgeInsets.symmetric(
-                      vertical: responsive.spacing(12)),
+                  padding: EdgeInsets.symmetric(vertical: responsive.spacing(12)),
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Close",
-                    style: TextStyle(color: Colors.white)),
+                child: const Text("Close", style: TextStyle(color: Colors.white)),
               )
             ],
           ),
@@ -479,7 +546,7 @@ class _HomepageState extends State<Homepage> {
           child: Column(
             children: [
               SizedBox(height: responsive.spacing(20)),
-              
+
               CircleAvatar(
                 radius: responsive.profileAvatarRadius * 1.5,
                 backgroundColor: Colors.green.shade200,
@@ -493,7 +560,7 @@ class _HomepageState extends State<Homepage> {
               SizedBox(height: responsive.spacing(20)),
 
               Text(
-                widget.userName ?? "Guest User",
+                _userName,
                 style: TextStyle(
                     fontSize: responsive.responsiveFontSize(26),
                     fontWeight: FontWeight.bold),
@@ -510,7 +577,7 @@ class _HomepageState extends State<Homepage> {
                   border: Border.all(color: Colors.green.shade300),
                 ),
                 child: Text(
-                  widget.userType ?? "Customer",
+                  _userType,
                   style: TextStyle(
                       color: Colors.green.shade900,
                       fontSize: responsive.responsiveFontSize(16),
@@ -520,11 +587,11 @@ class _HomepageState extends State<Homepage> {
 
               SizedBox(height: responsive.spacing(30)),
 
-              _infoRow(Icons.email, "Email", widget.userEmail),
+              _infoRow(Icons.email, "Email", _userEmail),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.phone, "Phone", widget.userPhone),
+              _infoRow(Icons.phone, "Phone", _userPhone),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.location_on, "Address", widget.userAddress),
+              _infoRow(Icons.location_on, "Address", _userAddress),
 
               SizedBox(height: responsive.spacing(30)),
 
@@ -538,12 +605,14 @@ class _HomepageState extends State<Homepage> {
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                onPressed: () {
-                  // Navigate back to login page
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const Loginpage()),
-                  );
+                onPressed: () async {
+                  await ApiService.clearAllData();
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Loginpage()),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.logout, color: Colors.white),
                 label: Text(
@@ -568,14 +637,12 @@ class _HomepageState extends State<Homepage> {
     final List<BottomNavigationBarItem> navItems = const [
       BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: "Home"),
       BottomNavigationBarItem(icon: Icon(Icons.access_time), label: "Activity"),
-      BottomNavigationBarItem(icon: Icon(Icons.book_online), label: "Booking"),
       BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
     ];
 
     final pages = [
       _homeBody(),
       const ActivityPage(),
-      const Center(child: Text("Booking")),
       _profileBody(),
     ];
 

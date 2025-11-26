@@ -287,4 +287,126 @@ class ApiService {
     await prefs.remove('token');
     await prefs.remove('userData');
   }
+
+  // ===================== CUSTOMER API METHODS =====================
+
+  // Get customer's bookings
+  static Future<List<dynamic>> getCustomerBookings({String? status}) async {
+    final token = await getToken();
+    String url = '$_baseUrl/bookings';
+    if (status != null) {
+      url += '?status=$status';
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load bookings');
+    }
+  }
+
+  // Generate unique booking ID
+  static String _generateBookingId() {
+    final now = DateTime.now();
+    final timestamp = now.millisecondsSinceEpoch.toString().substring(7);
+    return 'BK$timestamp';
+  }
+
+  // Create a new booking
+  static Future<Map<String, dynamic>> createBooking({
+    required String serviceId,
+    required String bookingDate,
+    required String bookingTime,
+    required String location,
+    required String address,
+    required String phone,
+    required String paymentMethod,
+    required int subtotal,
+    int discount = 0,
+    required int total,
+    String? notes,
+  }) async {
+    final token = await getToken();
+    final bookingId = _generateBookingId();
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/bookings'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'bookingId': bookingId,
+        'service': serviceId,
+        'bookingDate': bookingDate,
+        'bookingTime': bookingTime,
+        'location': location,
+        'address': address,
+        'phone': phone,
+        'paymentMethod': paymentMethod,
+        'subtotal': subtotal,
+        'discount': discount,
+        'total': total,
+        'notes': notes ?? '',
+      }),
+    );
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? {};
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Failed to create booking');
+    }
+  }
+
+  // Cancel a booking
+  static Future<Map<String, dynamic>> cancelBooking(String bookingId) async {
+    final token = await getToken();
+
+    final response = await http.put(
+      Uri.parse('$_baseUrl/bookings/$bookingId/cancel'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? {};
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Failed to cancel booking');
+    }
+  }
+
+  // Get single booking details
+  static Future<Map<String, dynamic>> getBookingDetails(String bookingId) async {
+    final token = await getToken();
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/bookings/$bookingId'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? {};
+    } else {
+      throw Exception('Failed to load booking details');
+    }
+  }
 }
