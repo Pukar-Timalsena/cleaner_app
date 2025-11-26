@@ -409,4 +409,52 @@ class ApiService {
       throw Exception('Failed to load booking details');
     }
   }
+
+  // ===================== CLEANER API METHODS =====================
+
+  // Get cleaner's assigned bookings (uses same endpoint, filtered by backend)
+  static Future<List<dynamic>> getCleanerBookings({String? status}) async {
+    final token = await getToken();
+    String url = '$_baseUrl/bookings';
+    if (status != null) {
+      url += '?status=$status';
+    }
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load assigned bookings');
+    }
+  }
+
+  // Update booking status (for cleaner to mark as in_progress or completed)
+  static Future<Map<String, dynamic>> updateBookingStatus(String bookingId, String status) async {
+    final token = await getToken();
+
+    final response = await http.put(
+      Uri.parse('$_baseUrl/bookings/$bookingId'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'status': status}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? {};
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Failed to update booking status');
+    }
+  }
 }

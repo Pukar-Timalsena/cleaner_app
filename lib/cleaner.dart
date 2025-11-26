@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'responsive_utils.dart';
 import 'login_page.dart';
+import 'services/api_service.dart';
 
 class CleanerDashboard extends StatefulWidget {
   const CleanerDashboard({super.key});
@@ -12,156 +13,301 @@ class CleanerDashboard extends StatefulWidget {
 class _CleanerDashboardState extends State<CleanerDashboard> {
   int _currentIndex = 0;
 
-  List<Map<String, dynamic>> assignedTasks = [
-    {
-      "title": "Clean Lobby",
-      "location": "Building A, Floor 1",
-      "status": "Ongoing",
-      "priority": "High",
-      "time": "2:00 PM - 4:00 PM",
-      "customer": "John Smith"
-    },
-    {
-      "title": "Clean Room 102",
-      "location": "Building B, Floor 1",
-      "status": "Pending",
-      "priority": "Medium",
-      "time": "4:30 PM - 6:00 PM",
-      "customer": "Sarah Johnson"
-    },
-    {
-      "title": "Carpet Cleaning",
-      "location": "Building A, Floor 3",
-      "status": "Completed",
-      "priority": "Low",
-      "time": "10:00 AM - 12:00 PM",
-      "customer": "Mike Davis"
-    },
-  ];
+  // Dynamic data
+  List<Map<String, dynamic>> assignedTasks = [];
+  List<Map<String, dynamic>> completedTasks = [];
+  Map<String, dynamic>? _cleanerUser;
 
-  List<Map<String, dynamic>> activityHistory = [
-    {"task": "Window Cleaning", "date": "2024-11-20", "rating": 4.5},
-    {"task": "Floor Mopping", "date": "2024-11-19", "rating": 5.0},
-    {"task": "Bathroom Cleaning", "date": "2024-11-18", "rating": 4.8},
-    {"task": "Kitchen Cleaning", "date": "2024-11-17", "rating": 4.7},
-  ];
+  // Loading states
+  bool _isLoadingTasks = true;
+  bool _isLoadingHistory = true;
 
-  Map<String, String> profile = {
-    "Name": "Jane Cleaner",
-    "Email": "cleaner@test.com",
-    "Phone": "+977 9812345678",
-    "Address": "Kathmandu, Nepal",
-    "Experience": "3 years",
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadAllData();
+  }
 
-  void _completeTask(int index) {
+  Future<void> _loadAllData() async {
+    await Future.wait([
+      _loadAssignedTasks(),
+      _loadCompletedTasks(),
+      _loadCleanerUser(),
+    ]);
+  }
+
+  Future<void> _loadAssignedTasks() async {
     setState(() {
-      assignedTasks[index]['status'] = 'Completed';
+      _isLoadingTasks = true;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Task marked as completed!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+
+    try {
+      final bookingsList = await ApiService.getCleanerBookings();
+      setState(() {
+        // Filter for active tasks (assigned, in_progress)
+        assignedTasks = bookingsList
+            .where((b) => b['status'] == 'assigned' || b['status'] == 'in_progress' || b['status'] == 'pending')
+            .map((b) => Map<String, dynamic>.from(b))
+            .toList();
+        _isLoadingTasks = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingTasks = false;
+      });
+      _showError('Failed to load tasks: $e');
+    }
+  }
+
+  Future<void> _loadCompletedTasks() async {
+    setState(() {
+      _isLoadingHistory = true;
+    });
+
+    try {
+      final bookingsList = await ApiService.getCleanerBookings();
+      setState(() {
+        // Filter for completed tasks
+        completedTasks = bookingsList
+            .where((b) => b['status'] == 'completed')
+            .map((b) => Map<String, dynamic>.from(b))
+            .toList();
+        _isLoadingHistory = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingHistory = false;
+      });
+      _showError('Failed to load history: $e');
+    }
+  }
+
+  Future<void> _loadCleanerUser() async {
+    try {
+      final userData = await ApiService.getUserData();
+      setState(() {
+        _cleanerUser = userData;
+      });
+    } catch (e) {
+      // Silently fail
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _startTask(String bookingId) async {
+    try {
+      await ApiService.updateBookingStatus(bookingId, 'in_progress');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task started!'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+      await _loadAssignedTasks();
+    } catch (e) {
+      _showError('Failed to start task: $e');
+    }
+  }
+
+  Future<void> _completeTask(String bookingId) async {
+    try {
+      await ApiService.updateBookingStatus(bookingId, 'completed');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task marked as completed!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await _loadAssignedTasks();
+      await _loadCompletedTasks();
+    } catch (e) {
+      _showError('Failed to complete task: $e');
+    }
+  }
+
+  // Get user info
+  String get _cleanerName => _cleanerUser?['name'] ?? "Cleaner";
+  String? get _cleanerEmail => _cleanerUser?['email'];
+  String? get _cleanerPhone => _cleanerUser?['phone'];
+  String? get _cleanerAddress => _cleanerUser?['address'];
+
+  // Format date for display
+  String _formatDate(String? dateString) {
+    if (dateString == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateString);
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${date.day} ${months[date.month - 1]}, ${date.year}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  // Get image based on service category
+  String _getServiceImage(Map<String, dynamic> booking) {
+    final category = booking['service']?['category'] ?? '';
+    switch (category) {
+      case 'house-cleaning':
+        return 'assets/cleaning.jpg';
+      case 'house-painting':
+        return 'assets/house.jpg';
+      case 'carpet-cleaning':
+        return 'assets/carpet.jpg';
+      case 'sanitary-cleaning':
+        return 'assets/drapery.jpg';
+      default:
+        return 'assets/cleaning.jpg';
+    }
   }
 
   // ---------------- TASKS BODY ----------------
   Widget _tasksBody() {
     final responsive = context.responsive;
+    final activeTasks = assignedTasks.where((t) => t['status'] != 'completed').toList();
 
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(responsive.spacing(20)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "My Tasks",
+      child: RefreshIndicator(
+        onRefresh: _loadAssignedTasks,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.all(responsive.spacing(20)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "My Tasks",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(24),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: responsive.spacing(4)),
+                        Text(
+                          "Your assigned jobs",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(14),
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(responsive.spacing(8)),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        "${activeTasks.length} Active",
                         style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(24),
+                          color: Colors.green.shade900,
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: responsive.spacing(4)),
-                      Text(
-                        "Today's assignments",
-                        style: TextStyle(
                           fontSize: responsive.responsiveFontSize(14),
-                          color: Colors.grey.shade600,
                         ),
                       ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.all(responsive.spacing(8)),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      "${assignedTasks.where((t) => t['status'] != 'Completed').length} Active",
-                      style: TextStyle(
-                        color: Colors.green.shade900,
-                        fontWeight: FontWeight.bold,
-                        fontSize: responsive.responsiveFontSize(14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
 
-              SizedBox(height: responsive.spacing(25)),
+                SizedBox(height: responsive.spacing(25)),
 
-              // Task Cards
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: assignedTasks.length,
-                itemBuilder: (context, index) {
-                  final task = assignedTasks[index];
-                  return _taskCard(task, index, responsive);
-                },
-              ),
-            ],
+                // Task Cards
+                _isLoadingTasks
+                    ? const Center(child: CircularProgressIndicator())
+                    : assignedTasks.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(responsive.spacing(40)),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.assignment_outlined, size: 60, color: Colors.grey.shade400),
+                                  SizedBox(height: responsive.spacing(12)),
+                                  Text(
+                                    "No tasks assigned yet",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: responsive.responsiveFontSize(16),
+                                    ),
+                                  ),
+                                  SizedBox(height: responsive.spacing(8)),
+                                  Text(
+                                    "Tasks will appear here when admin assigns them to you",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: responsive.responsiveFontSize(13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: assignedTasks.length,
+                            itemBuilder: (context, index) {
+                              final task = assignedTasks[index];
+                              return _taskCard(task, responsive);
+                            },
+                          ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _taskCard(Map<String, dynamic> task, int index, ResponsiveUtils responsive) {
+  Widget _taskCard(Map<String, dynamic> booking, ResponsiveUtils responsive) {
+    final service = booking['service'] as Map<String, dynamic>?;
+    final customer = booking['customer'] as Map<String, dynamic>?;
+    final status = booking['status'] ?? 'pending';
+    final title = service?['title'] ?? 'Unknown Service';
+    final address = booking['address'] ?? 'N/A';
+    final bookingTime = booking['bookingTime'] ?? 'N/A';
+    final bookingDate = _formatDate(booking['bookingDate']);
+    final customerName = customer?['name'] ?? booking['customerName'] ?? 'Unknown';
+    final customerPhone = booking['phone'] ?? customer?['phone'] ?? 'N/A';
+    final price = booking['total'] ?? service?['basePrice'] ?? 0;
+
     Color statusColor;
-    Color priorityColor;
+    String statusText;
 
-    switch (task['status']) {
-      case 'Completed':
+    switch (status) {
+      case 'completed':
         statusColor = Colors.green;
+        statusText = 'COMPLETED';
         break;
-      case 'Ongoing':
+      case 'in_progress':
         statusColor = Colors.orange;
+        statusText = 'IN PROGRESS';
         break;
-      default:
+      case 'assigned':
         statusColor = Colors.blue;
-    }
-
-    switch (task['priority']) {
-      case 'High':
-        priorityColor = Colors.red;
-        break;
-      case 'Medium':
-        priorityColor = Colors.orange;
+        statusText = 'ASSIGNED';
         break;
       default:
-        priorityColor = Colors.grey;
+        statusColor = Colors.grey;
+        statusText = 'PENDING';
     }
 
     return Container(
@@ -182,16 +328,39 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header with service image and title
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  _getServiceImage(booking),
+                  width: 50,
+                  height: 50,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              SizedBox(width: responsive.spacing(12)),
               Expanded(
-                child: Text(
-                  task['title'],
-                  style: TextStyle(
-                    fontSize: responsive.responsiveFontSize(16),
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: responsive.responsiveFontSize(16),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: responsive.spacing(4)),
+                    Text(
+                      booking['bookingId'] ?? '',
+                      style: TextStyle(
+                        fontSize: responsive.responsiveFontSize(12),
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Container(
@@ -200,15 +369,15 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
                   vertical: responsive.spacing(4),
                 ),
                 decoration: BoxDecoration(
-                  color: priorityColor.withOpacity(0.1),
+                  color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: priorityColor),
+                  border: Border.all(color: statusColor),
                 ),
                 child: Text(
-                  task['priority'],
+                  statusText,
                   style: TextStyle(
-                    color: priorityColor,
-                    fontSize: responsive.responsiveFontSize(11),
+                    color: statusColor,
+                    fontSize: responsive.responsiveFontSize(10),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -216,49 +385,49 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
             ],
           ),
 
+          SizedBox(height: responsive.spacing(16)),
+
+          // Details
+          Container(
+            padding: EdgeInsets.all(responsive.spacing(12)),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              children: [
+                _detailRow(Icons.person, "Customer", customerName, responsive),
+                SizedBox(height: responsive.spacing(8)),
+                _detailRow(Icons.phone, "Phone", customerPhone, responsive),
+                SizedBox(height: responsive.spacing(8)),
+                _detailRow(Icons.location_on, "Address", address, responsive),
+                SizedBox(height: responsive.spacing(8)),
+                _detailRow(Icons.calendar_today, "Date", bookingDate, responsive),
+                SizedBox(height: responsive.spacing(8)),
+                _detailRow(Icons.access_time, "Time", bookingTime, responsive),
+              ],
+            ),
+          ),
+
           SizedBox(height: responsive.spacing(12)),
 
+          // Price
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
-              SizedBox(width: responsive.spacing(4)),
               Text(
-                task['location'],
+                "Payment:",
                 style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(13),
+                  fontSize: responsive.responsiveFontSize(14),
                   color: Colors.grey.shade600,
                 ),
               ),
-            ],
-          ),
-
-          SizedBox(height: responsive.spacing(6)),
-
-          Row(
-            children: [
-              Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-              SizedBox(width: responsive.spacing(4)),
               Text(
-                task['time'],
+                "NPR $price",
                 style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(13),
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: responsive.spacing(6)),
-
-          Row(
-            children: [
-              Icon(Icons.person, size: 16, color: Colors.grey.shade600),
-              SizedBox(width: responsive.spacing(4)),
-              Text(
-                "Customer: ${task['customer']}",
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(13),
-                  color: Colors.grey.shade600,
+                  fontSize: responsive.responsiveFontSize(16),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
                 ),
               ),
             ],
@@ -266,55 +435,81 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
 
           SizedBox(height: responsive.spacing(16)),
 
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: responsive.spacing(8)),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: statusColor),
+          // Action Buttons
+          if (status == 'assigned')
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _startTask(booking['_id']),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  padding: EdgeInsets.symmetric(vertical: responsive.spacing(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Center(
-                    child: Text(
-                      task['status'],
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: responsive.responsiveFontSize(13),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                ),
+                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                label: Text(
+                  'Start Task',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: responsive.responsiveFontSize(14),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              if (task['status'] != 'Completed') ...[
-                SizedBox(width: responsive.spacing(12)),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _completeTask(index),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: EdgeInsets.symmetric(vertical: responsive.spacing(8)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      'Complete',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: responsive.responsiveFontSize(13),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+            ),
+
+          if (status == 'in_progress')
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _completeTask(booking['_id']),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: EdgeInsets.symmetric(vertical: responsive.spacing(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-              ],
-            ],
-          ),
+                icon: const Icon(Icons.check_circle, color: Colors.white),
+                label: Text(
+                  'Mark Complete',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: responsive.responsiveFontSize(14),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value, ResponsiveUtils responsive) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade600),
+        SizedBox(width: responsive.spacing(8)),
+        Text(
+          "$label: ",
+          style: TextStyle(
+            fontSize: responsive.responsiveFontSize(13),
+            color: Colors.grey.shade600,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: responsive.responsiveFontSize(13),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -322,58 +517,86 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
   Widget _activityBody() {
     final responsive = context.responsive;
 
+    // Calculate stats
+    final totalCompleted = completedTasks.length;
+
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.all(responsive.spacing(20)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Activity History",
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(22),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              SizedBox(height: responsive.spacing(10)),
-
-              Text(
-                "Your completed tasks and ratings",
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(14),
-                  color: Colors.grey.shade600,
-                ),
-              ),
-
-              SizedBox(height: responsive.spacing(20)),
-
-              // Stats Summary
-              Row(
-                children: [
-                  Expanded(
-                    child: _statBox("Total Tasks", "24", Colors.blue, responsive),
+      child: RefreshIndicator(
+        onRefresh: _loadCompletedTasks,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: EdgeInsets.all(responsive.spacing(20)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Activity History",
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(22),
+                    fontWeight: FontWeight.bold,
                   ),
-                  SizedBox(width: responsive.spacing(12)),
-                  Expanded(
-                    child: _statBox("Avg Rating", "4.8", Colors.orange, responsive),
+                ),
+
+                SizedBox(height: responsive.spacing(10)),
+
+                Text(
+                  "Your completed tasks",
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(14),
+                    color: Colors.grey.shade600,
                   ),
-                ],
-              ),
+                ),
 
-              SizedBox(height: responsive.spacing(25)),
+                SizedBox(height: responsive.spacing(20)),
 
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: activityHistory.length,
-                itemBuilder: (context, index) {
-                  final activity = activityHistory[index];
-                  return _activityCard(activity, responsive);
-                },
-              ),
-            ],
+                // Stats Summary
+                Row(
+                  children: [
+                    Expanded(
+                      child: _statBox("Completed", totalCompleted.toString(), Colors.green, responsive),
+                    ),
+                    SizedBox(width: responsive.spacing(12)),
+                    Expanded(
+                      child: _statBox("Active", assignedTasks.length.toString(), Colors.blue, responsive),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: responsive.spacing(25)),
+
+                _isLoadingHistory
+                    ? const Center(child: CircularProgressIndicator())
+                    : completedTasks.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(responsive.spacing(40)),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.history, size: 60, color: Colors.grey.shade400),
+                                  SizedBox(height: responsive.spacing(12)),
+                                  Text(
+                                    "No completed tasks yet",
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: responsive.responsiveFontSize(16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: completedTasks.length,
+                            itemBuilder: (context, index) {
+                              final task = completedTasks[index];
+                              return _activityCard(task, responsive);
+                            },
+                          ),
+              ],
+            ),
           ),
         ),
       ),
@@ -421,7 +644,12 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
     );
   }
 
-  Widget _activityCard(Map<String, dynamic> activity, ResponsiveUtils responsive) {
+  Widget _activityCard(Map<String, dynamic> booking, ResponsiveUtils responsive) {
+    final service = booking['service'] as Map<String, dynamic>?;
+    final title = service?['title'] ?? 'Unknown Service';
+    final completedDate = _formatDate(booking['completedAt'] ?? booking['updatedAt']);
+    final price = booking['total'] ?? service?['basePrice'] ?? 0;
+
     return Container(
       margin: EdgeInsets.only(bottom: responsive.spacing(12)),
       padding: EdgeInsets.all(responsive.spacing(16)),
@@ -453,7 +681,7 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  activity['task'],
+                  title,
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(15),
                     fontWeight: FontWeight.bold,
@@ -461,7 +689,7 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
                 ),
                 SizedBox(height: responsive.spacing(4)),
                 Text(
-                  activity['date'],
+                  completedDate,
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(13),
                     color: Colors.grey.shade600,
@@ -470,18 +698,13 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
               ],
             ),
           ),
-          Row(
-            children: [
-              Icon(Icons.star, color: Colors.orange, size: 18),
-              SizedBox(width: responsive.spacing(4)),
-              Text(
-                activity['rating'].toString(),
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(14),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+          Text(
+            "NPR $price",
+            style: TextStyle(
+              fontSize: responsive.responsiveFontSize(14),
+              fontWeight: FontWeight.bold,
+              color: Colors.green.shade700,
+            ),
           ),
         ],
       ),
@@ -499,12 +722,12 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
           child: Column(
             children: [
               SizedBox(height: responsive.spacing(20)),
-              
+
               CircleAvatar(
                 radius: responsive.profileAvatarRadius * 1.5,
                 backgroundColor: Colors.green.shade200,
                 child: Icon(
-                  Icons.person,
+                  Icons.cleaning_services,
                   size: responsive.profileAvatarRadius * 1.2,
                   color: Colors.green.shade900,
                 ),
@@ -513,7 +736,7 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
               SizedBox(height: responsive.spacing(20)),
 
               Text(
-                profile['Name']!,
+                _cleanerName,
                 style: TextStyle(
                     fontSize: responsive.responsiveFontSize(26),
                     fontWeight: FontWeight.bold),
@@ -538,15 +761,25 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
                 ),
               ),
 
+              SizedBox(height: responsive.spacing(20)),
+
+              // Stats Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _miniStat("Completed", completedTasks.length.toString(), Colors.green, responsive),
+                  SizedBox(width: responsive.spacing(20)),
+                  _miniStat("Active", assignedTasks.length.toString(), Colors.blue, responsive),
+                ],
+              ),
+
               SizedBox(height: responsive.spacing(30)),
 
-              _infoRow(Icons.email, "Email", profile['Email']!, responsive),
+              _infoRow(Icons.email, "Email", _cleanerEmail ?? "Not provided", responsive),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.phone, "Phone", profile['Phone']!, responsive),
+              _infoRow(Icons.phone, "Phone", _cleanerPhone ?? "Not provided", responsive),
               SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.location_on, "Address", profile['Address']!, responsive),
-              SizedBox(height: responsive.spacing(12)),
-              _infoRow(Icons.work, "Experience", profile['Experience']!, responsive),
+              _infoRow(Icons.location_on, "Address", _cleanerAddress ?? "Not provided", responsive),
 
               SizedBox(height: responsive.spacing(30)),
 
@@ -560,11 +793,14 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const Loginpage()),
-                  );
+                onPressed: () async {
+                  await ApiService.clearAllData();
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Loginpage()),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.logout, color: Colors.white),
                 label: Text(
@@ -580,6 +816,36 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _miniStat(String label, String value, Color color, ResponsiveUtils responsive) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(responsive.spacing(12)),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: responsive.responsiveFontSize(20),
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+        SizedBox(height: responsive.spacing(6)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: responsive.responsiveFontSize(12),
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -616,7 +882,7 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
   Widget build(BuildContext context) {
     final List<BottomNavigationBarItem> navItems = const [
       BottomNavigationBarItem(icon: Icon(Icons.assignment), label: "Tasks"),
-      BottomNavigationBarItem(icon: Icon(Icons.history), label: "Activity"),
+      BottomNavigationBarItem(icon: Icon(Icons.history), label: "History"),
       BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
     ];
 
