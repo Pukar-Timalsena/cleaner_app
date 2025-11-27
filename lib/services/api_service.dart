@@ -457,4 +457,111 @@ class ApiService {
       throw Exception(body['error'] ?? 'Failed to update booking status');
     }
   }
+
+  // ===================== MESSAGING API METHODS =====================
+
+  // Send a message (to cleaner, customer, or admin)
+  static Future<Map<String, dynamic>> sendMessage({
+    String? bookingId,
+    required String recipientId,
+    required String recipientType, // 'customer', 'cleaner', 'admin'
+    required String message,
+  }) async {
+    final token = await getToken();
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/messages'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'bookingId': bookingId,
+        'recipientId': recipientId,
+        'recipientType': recipientType,
+        'message': message,
+      }),
+    );
+
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? {};
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Failed to send message');
+    }
+  }
+
+  // Get messages for a specific booking
+  static Future<List<dynamic>> getMessagesForBooking(String bookingId) async {
+    final token = await getToken();
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/messages/booking/$bookingId'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load messages');
+    }
+  }
+
+  // Get all conversations for current user
+  static Future<List<dynamic>> getConversations() async {
+    final token = await getToken();
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/messages/conversations'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load conversations');
+    }
+  }
+
+  // Mark messages as read
+  static Future<void> markMessagesAsRead(String conversationId) async {
+    final token = await getToken();
+
+    await http.put(
+      Uri.parse('$_baseUrl/messages/$conversationId/read'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+  }
+
+  // Get messages between current user and admin
+  static Future<List<dynamic>> getAdminMessages() async {
+    final token = await getToken();
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/messages/admin'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data'] ?? [];
+    } else {
+      throw Exception('Failed to load admin messages');
+    }
+  }
 }

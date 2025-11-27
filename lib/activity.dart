@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'responsive_utils.dart';
 import 'services/api_service.dart';
+import 'messages_page.dart';
 
 class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
@@ -465,30 +466,66 @@ class _ActivityPageState extends State<ActivityPage> {
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Icon(Icons.person, size: 16, color: Colors.blue.shade700),
-                  SizedBox(width: responsive.spacing(6)),
-                  Text(
-                    "Cleaner: ${cleaner['name'] ?? 'Assigned'}",
-                    style: TextStyle(
-                      fontSize: responsive.responsiveFontSize(12),
-                      color: Colors.blue.shade900,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.person, size: 16, color: Colors.blue.shade700),
+                      SizedBox(width: responsive.spacing(6)),
+                      Text(
+                        "Cleaner: ${cleaner['name'] ?? 'Assigned'}",
+                        style: TextStyle(
+                          fontSize: responsive.responsiveFontSize(12),
+                          color: Colors.blue.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (cleaner['phone'] != null) ...[
+                        const Spacer(),
+                        Icon(Icons.phone, size: 14, color: Colors.blue.shade700),
+                        SizedBox(width: responsive.spacing(4)),
+                        Text(
+                          cleaner['phone'],
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(11),
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  if (cleaner['phone'] != null) ...[
-                    const Spacer(),
-                    Icon(Icons.phone, size: 14, color: Colors.blue.shade700),
-                    SizedBox(width: responsive.spacing(4)),
-                    Text(
-                      cleaner['phone'],
-                      style: TextStyle(
-                        fontSize: responsive.responsiveFontSize(11),
-                        color: Colors.blue.shade700,
+                  SizedBox(height: responsive.spacing(8)),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: EdgeInsets.symmetric(vertical: responsive.spacing(8)),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MessagesPage(
+                              bookingId: booking['_id'],
+                              recipientId: cleaner['_id'] ?? '',
+                              recipientName: cleaner['name'] ?? 'Cleaner',
+                              recipientType: 'cleaner',
+                              bookingDetails: booking,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.message, size: 16, color: Colors.white),
+                      label: Text(
+                        "Message Cleaner",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: responsive.responsiveFontSize(13),
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),

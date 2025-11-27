@@ -2,8 +2,9 @@ import 'package:clean_service/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'responsive_utils.dart';
-
 import 'home.dart';
+import 'admin.dart';
+import 'cleaner.dart';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});
@@ -271,18 +272,39 @@ class _SignupState extends State<Signup> {
 
                                 final result = await ApiService.registerUser(data);
 
+                                if (!mounted) return;
+
                                 if (result['success']) {
+                                  final user = result['user'];
+                                  
+                                  // Save user data
+                                  await ApiService.saveUserData(user);
+
+                                  if (!mounted) return;
+
+                                  // Navigate based on role
+                                  Widget destination;
+                                  switch (user['role']) {
+                                    case 'admin':
+                                      destination = const AdminDashboard();
+                                      break;
+                                    case 'cleaner':
+                                      destination = const CleanerDashboard();
+                                      break;
+                                    case 'customer':
+                                    default:
+                                      destination = Homepage(
+                                        userName: user['name'],
+                                        userEmail: user['email'],
+                                        userAddress: user['address'],
+                                        userPhone: user['phone'],
+                                        userType: user['role'],
+                                      );
+                                  }
+
                                   Navigator.pushReplacement(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (context) => Homepage(
-                                        userName: result['user']['name'],
-                                        userEmail: result['user']['email'],
-                                        userAddress: result['user']['address'],
-                                        userPhone: result['user']['phone'],
-                                        userType: result['user']['role'],
-                                      ),
-                                    ),
+                                    MaterialPageRoute(builder: (context) => destination),
                                   );
                                 } else {
                                   _showError('Registration failed: ${result['error']}');

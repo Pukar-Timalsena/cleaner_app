@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'responsive_utils.dart';
 import 'login_page.dart';
 import 'services/api_service.dart';
+import 'messages_page.dart';
 
 class CleanerDashboard extends StatefulWidget {
   const CleanerDashboard({super.key});
@@ -483,6 +484,46 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
                 ),
               ),
             ),
+
+          // Message Customer Button
+          if (customer != null) ...[
+            SizedBox(height: responsive.spacing(8)),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MessagesPage(
+                        bookingId: booking['_id'],
+                        recipientId: customer['_id'] ?? '',
+                        recipientName: customerName,
+                        recipientType: 'customer',
+                        bookingDetails: booking,
+                      ),
+                    ),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  side: const BorderSide(color: Colors.blue),
+                  padding: EdgeInsets.symmetric(vertical: responsive.spacing(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.message, size: 18),
+                label: Text(
+                  'Message Customer',
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(14),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
