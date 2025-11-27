@@ -4,6 +4,7 @@ import 'responsive_utils.dart';
 import 'feature_details.dart';
 import 'login_page.dart';
 import 'services/api_service.dart';
+import 'messages_page.dart';
 
 class Homepage extends StatefulWidget {
   final String? userName;
@@ -32,6 +33,10 @@ class _HomepageState extends State<Homepage> {
   List<Map<String, dynamic>> services = [];
   bool _isLoadingServices = true;
 
+  // Bookings list
+  List<Map<String, dynamic>> bookings = [];
+  bool _isLoadingBookings = true;
+
   // User data from storage
   Map<String, dynamic>? _userData;
 
@@ -45,6 +50,7 @@ class _HomepageState extends State<Homepage> {
     await Future.wait([
       _loadServices(),
       _loadUserData(),
+      _loadBookings(),
     ]);
   }
 
@@ -74,6 +80,21 @@ class _HomepageState extends State<Homepage> {
       });
     } catch (e) {
       // Silently fail - will use widget parameters
+    }
+  }
+
+  Future<void> _loadBookings() async {
+    try {
+      final bookingsList = await ApiService.getCustomerBookings();
+      setState(() {
+        bookings = bookingsList.map((b) => Map<String, dynamic>.from(b)).toList();
+        _isLoadingBookings = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingBookings = false;
+      });
+      // Silently fail - user might not have any bookings
     }
   }
 
@@ -156,7 +177,16 @@ class _HomepageState extends State<Homepage> {
                         ),
                       ],
                     ),
-                    Icon(Icons.notifications_none, size: responsive.responsiveFontSize(28)),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.message_outlined, size: responsive.responsiveFontSize(24)),
+                          onPressed: () => _openAdminMessaging(),
+                          tooltip: 'Message Admin',
+                        ),
+                        Icon(Icons.notifications_none, size: responsive.responsiveFontSize(28)),
+                      ],
+                    ),
                   ],
                 ),
 
@@ -234,6 +264,56 @@ class _HomepageState extends State<Homepage> {
                 ),
 
                 SizedBox(height: responsive.spacing(20)),
+
+                // ---------------- MY BOOKINGS ----------------
+                if (bookings.isNotEmpty) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "My Bookings",
+                        style: TextStyle(
+                          fontSize: responsive.responsiveFontSize(18),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _currentIndex = 1); // Navigate to Activity tab
+                        },
+                        child: Text(
+                          "View All",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: responsive.responsiveFontSize(14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: responsive.spacing(12)),
+
+                  // Bookings List (show max 3 recent bookings)
+                  _isLoadingBookings
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: bookings.length > 3 ? 3 : bookings.length,
+                          itemBuilder: (context, index) {
+                            final booking = bookings[index];
+                            return _bookingCard(booking, responsive);
+                          },
+                        ),
+
+                  SizedBox(height: responsive.spacing(20)),
+                ],
 
                 Text(
                   "Featured Services",
@@ -430,6 +510,261 @@ class _HomepageState extends State<Homepage> {
     );
   }
 
+  // ---------------- BOOKING CARD ----------------
+  Widget _bookingCard(Map<String, dynamic> booking, ResponsiveUtils responsive) {
+    final service = booking['service'] as Map<String, dynamic>?;
+    final title = service?['title'] ?? 'Unknown Service';
+    final price = booking['total'] ?? service?['basePrice'] ?? 0;
+    final dateString = booking['bookingDate'];
+    final status = booking['status'] ?? 'pending';
+    final cleaner = booking['cleaner'] as Map<String, dynamic>?;
+
+    Color statusColor;
+    switch (status) {
+      case 'completed':
+        statusColor = Colors.green;
+        break;
+      case 'cancelled':
+        statusColor = Colors.red;
+        break;
+      case 'in_progress':
+        statusColor = Colors.blue;
+        break;
+      case 'assigned':
+        statusColor = Colors.orange;
+        break;
+      default:
+        statusColor = Colors.grey;
+    }
+
+    // Get image based on service category
+    String getServiceImage() {
+      final category = service?['category'] ?? '';
+      switch (category) {
+        case 'house-cleaning':
+          return 'assets/cleaning.jpg';
+        case 'house-painting':
+          return 'assets/house.jpg';
+        case 'carpet-cleaning':
+          return 'assets/carpet.jpg';
+        case 'sanitary-cleaning':
+          return 'assets/drapery.jpg';
+        default:
+          return 'assets/cleaning.jpg';
+      }
+    }
+
+    // Format date
+    String formatDate(String? dateString) {
+      if (dateString == null) return 'N/A';
+      try {
+        final date = DateTime.parse(dateString);
+        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return '${date.day} ${months[date.month - 1]}, ${date.year}';
+      } catch (e) {
+        return dateString;
+      }
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: responsive.spacing(12)),
+      padding: EdgeInsets.all(responsive.spacing(12)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Service Image
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.asset(
+                  getServiceImage(),
+                  width: responsive.spacing(60),
+                  height: responsive.spacing(60),
+                  fit: BoxFit.cover,
+                ),
+              ),
+
+              SizedBox(width: responsive.spacing(12)),
+
+              // Service Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: responsive.responsiveFontSize(15),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: responsive.spacing(4)),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade600),
+                        SizedBox(width: responsive.spacing(4)),
+                        Text(
+                          formatDate(dateString),
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(12),
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (booking['bookingTime'] != null) ...[
+                      SizedBox(height: responsive.spacing(2)),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+                          SizedBox(width: responsive.spacing(4)),
+                          Text(
+                            booking['bookingTime'],
+                            style: TextStyle(
+                              fontSize: responsive.responsiveFontSize(12),
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              // Price and Status
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "NPR $price",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: responsive.responsiveFontSize(14),
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                  SizedBox(height: responsive.spacing(4)),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: responsive.spacing(8),
+                      vertical: responsive.spacing(3),
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: statusColor),
+                    ),
+                    child: Text(
+                      status.toString().replaceAll('_', ' ').toUpperCase(),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: responsive.responsiveFontSize(10),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Cleaner info and message button (if assigned)
+          if (cleaner != null) ...[
+            SizedBox(height: responsive.spacing(10)),
+            Container(
+              padding: EdgeInsets.all(responsive.spacing(10)),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.person, size: 16, color: Colors.blue.shade700),
+                      SizedBox(width: responsive.spacing(6)),
+                      Expanded(
+                        child: Text(
+                          "Cleaner: ${cleaner['name'] ?? 'Assigned'}",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(12),
+                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (cleaner['phone'] != null) ...[
+                        Icon(Icons.phone, size: 14, color: Colors.blue.shade700),
+                        SizedBox(width: responsive.spacing(4)),
+                        Text(
+                          cleaner['phone'],
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(11),
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  SizedBox(height: responsive.spacing(8)),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: EdgeInsets.symmetric(vertical: responsive.spacing(8)),
+                      ),
+                      onPressed: () => _showMessageDialog(booking, cleaner),
+                      icon: const Icon(Icons.message, size: 16, color: Colors.white),
+                      label: Text(
+                        "Message Cleaner",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: responsive.responsiveFontSize(13),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ---------------- MESSAGE DIALOG ----------------
+  void _showMessageDialog(Map<String, dynamic> booking, Map<String, dynamic> cleaner) {
+    // Navigate to full messaging page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MessagesPage(
+          bookingId: booking['_id'],
+          recipientId: cleaner['_id'] ?? '',
+          recipientName: cleaner['name'] ?? 'Cleaner',
+          recipientType: 'cleaner',
+          bookingDetails: booking,
+        ),
+      ),
+    );
+  }
+
   // ---------------- PROFILE DIALOG ----------------
   void _showProfileDialog(BuildContext context) {
     final responsive = context.responsive;
@@ -534,6 +869,28 @@ class _HomepageState extends State<Homepage> {
       ),
     );
   }
+
+  // ---------------- ADMIN MESSAGING ----------------
+  void _openAdminMessaging() async {
+    try {
+      // Get admin user ID - you might need to fetch this from API
+      // For now, using a placeholder
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MessagesPage(
+            recipientId: 'admin',
+            recipientName: 'Admin Support',
+            recipientType: 'admin',
+          ),
+        ),
+      );
+    } catch (e) {
+      _showError('Failed to open admin messaging: $e');
+    }
+  }
+
+
 
   // ---------------- PROFILE BODY ----------------
   Widget _profileBody() {

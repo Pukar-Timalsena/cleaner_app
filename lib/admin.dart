@@ -429,48 +429,338 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _statCard(String title, String count, IconData icon, Color color, ResponsiveUtils responsive) {
-    return Container(
-      padding: EdgeInsets.all(responsive.spacing(16)),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: () async {
+        // Show details when stat card is tapped
+        if (title == "Total Users") {
+          await _showUsersDialog(title);
+        } else if (title == "Cleaners") {
+          await _showUsersDialog(title);
+        } else if (title == "Services") {
+          await _showServicesDialog();
+        } else if (title == "Active Bookings") {
+          await _showActiveBookingsDialog();
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.all(responsive.spacing(16)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color, color.withOpacity(0.7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white, size: responsive.responsiveFontSize(32)),
-          SizedBox(height: responsive.spacing(8)),
-          Text(
-            count,
-            style: TextStyle(
-              fontSize: responsive.responsiveFontSize(24),
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: responsive.responsiveFontSize(32)),
+            SizedBox(height: responsive.spacing(8)),
+            Text(
+              count,
+              style: TextStyle(
+                fontSize: responsive.responsiveFontSize(24),
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
-          ),
-          SizedBox(height: responsive.spacing(4)),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: responsive.responsiveFontSize(12),
-              color: Colors.white.withOpacity(0.9),
+            SizedBox(height: responsive.spacing(4)),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: responsive.responsiveFontSize(12),
+                color: Colors.white.withOpacity(0.9),
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  // Show users/cleaners dialog
+  Future<void> _showUsersDialog(String title) async {
+    try {
+      List<dynamic> usersList;
+      if (title == "Total Users") {
+        usersList = await ApiService.getUsers(role: 'customer');
+      } else {
+        usersList = await ApiService.getUsers(role: 'cleaner');
+      }
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 500, maxWidth: 400),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Expanded(
+                  child: usersList.isEmpty
+                      ? const Center(child: Text("No users found"))
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: usersList.length,
+                          itemBuilder: (context, index) {
+                            final user = usersList[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.green.shade100,
+                                child: Icon(
+                                  Icons.person,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                              title: Text(user['name'] ?? 'Unknown'),
+                              subtitle: Text(user['email'] ?? 'No email'),
+                              trailing: user['phone'] != null
+                                  ? Text(
+                                      user['phone'],
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    )
+                                  : null,
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      _showError('Failed to load users: $e');
+    }
+  }
+
+  // Show services dialog
+  Future<void> _showServicesDialog() async {
+    print('DEBUG: _showServicesDialog called');
+    try {
+      print('DEBUG: Fetching services...');
+      final servicesList = await ApiService.getServices();
+      print('DEBUG: Services fetched: ${servicesList.length} items');
+
+      if (!mounted) {
+        print('DEBUG: Widget not mounted, returning');
+        return;
+      }
+
+      print('DEBUG: Showing dialog...');
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 500, maxWidth: 400),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Services",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Expanded(
+                  child: servicesList.isEmpty
+                      ? const Center(child: Text("No services found"))
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: servicesList.length,
+                          itemBuilder: (context, index) {
+                            final service = servicesList[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.orange.shade100,
+                                child: Icon(
+                                  Icons.home_repair_service,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                              title: Text(service['title'] ?? 'Unknown'),
+                              subtitle: Text(service['category'] ?? 'No category'),
+                              trailing: Text(
+                                'NPR ${service['basePrice'] ?? 0}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      print('DEBUG: Error in _showServicesDialog: $e');
+      _showError('Failed to load services: $e');
+    }
+  }
+
+  // Show active bookings dialog
+  Future<void> _showActiveBookingsDialog() async {
+    print('DEBUG: _showActiveBookingsDialog called');
+    try {
+      print('DEBUG: Filtering active bookings from ${bookings.length} total bookings');
+      final activeBookingsList = bookings.where((b) {
+        final status = b['status'];
+        return status == 'pending' || status == 'assigned' || status == 'in_progress';
+      }).toList();
+      print('DEBUG: Found ${activeBookingsList.length} active bookings');
+
+      if (!mounted) {
+        print('DEBUG: Widget not mounted, returning');
+        return;
+      }
+
+      print('DEBUG: Showing active bookings dialog...');
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 500, maxWidth: 400),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Active Bookings",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Expanded(
+                  child: activeBookingsList.isEmpty
+                      ? const Center(child: Text("No active bookings"))
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: activeBookingsList.length,
+                          itemBuilder: (context, index) {
+                            final booking = activeBookingsList[index];
+                            final service = booking['service'] as Map<String, dynamic>?;
+                            final customer = booking['customer'] as Map<String, dynamic>?;
+                            final status = booking['status'] ?? 'pending';
+                            
+                            Color statusColor = status == 'assigned' || status == 'in_progress'
+                                ? Colors.orange
+                                : Colors.grey;
+
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.purple.shade100,
+                                child: Icon(
+                                  Icons.book_online,
+                                  color: Colors.purple.shade700,
+                                ),
+                              ),
+                              title: Text(service?['title'] ?? 'Unknown Service'),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Customer: ${customer?['name'] ?? 'Unknown'}'),
+                                  Text(
+                                    'ID: ${booking['bookingId'] ?? 'N/A'}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: statusColor),
+                                ),
+                                child: Text(
+                                  status.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ),
+                              isThreeLine: true,
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      print('DEBUG: Error in _showActiveBookingsDialog: $e');
+      _showError('Failed to load active bookings: $e');
+    }
   }
 
   Widget _recentBookingCard(Map<String, dynamic> booking, ResponsiveUtils responsive) {
@@ -1308,6 +1598,46 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
 
           SizedBox(height: responsive.spacing(16)),
+
+          // Customer Notes/Message Section
+          if (booking['notes'] != null && booking['notes'].toString().trim().isNotEmpty) ...[
+            Container(
+              padding: EdgeInsets.all(responsive.spacing(12)),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.message, size: 16, color: Colors.amber.shade700),
+                      SizedBox(width: responsive.spacing(6)),
+                      Text(
+                        "Customer Message:",
+                        style: TextStyle(
+                          fontSize: responsive.responsiveFontSize(13),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: responsive.spacing(8)),
+                  Text(
+                    booking['notes'],
+                    style: TextStyle(
+                      fontSize: responsive.responsiveFontSize(13),
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: responsive.spacing(16)),
+          ],
 
           // Cleaner Assignment Section
           if (status == 'pending') ...[

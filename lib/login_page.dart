@@ -20,6 +20,9 @@ class _LoginpageState extends State<Loginpage> {
   bool _isLoading = false;
 
   void _handleLogin() async {
+    // Prevent multiple login attempts
+    if (_isLoading) return;
+
     setState(() {
       _isLoading = true;
     });
@@ -30,7 +33,9 @@ class _LoginpageState extends State<Loginpage> {
         _passwordController.text.trim(),
       );
 
-      if (result['success']) {
+      if (!mounted) return;
+
+      if (result['success'] == true) {
         _emailController.clear();
         _passwordController.clear();
 
@@ -39,13 +44,15 @@ class _LoginpageState extends State<Loginpage> {
         // Save user data for later use
         await ApiService.saveUserData(user);
 
+        if (!mounted) return;
+
         Widget destination;
         switch (user['role']) {
           case 'admin':
-            destination = AdminDashboard();
+            destination = const AdminDashboard();
             break;
           case 'cleaner':
-            destination = CleanerDashboard();
+            destination = const CleanerDashboard();
             break;
           case 'customer':
           default:
@@ -56,19 +63,29 @@ class _LoginpageState extends State<Loginpage> {
             );
         }
 
+        // Reset loading state before navigation
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Navigate to destination
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => destination),
         );
       } else {
-        _showError('Login failed: ${result['error']}');
+        setState(() {
+          _isLoading = false;
+        });
+        _showError('Login failed: ${result['error'] ?? 'Unknown error'}');
       }
     } catch (e) {
-      _showError('An error occurred: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showError('An error occurred: $e');
+      }
     }
   }
 
@@ -294,27 +311,34 @@ class _LoginpageState extends State<Loginpage> {
 
                         // LOGIN BUTTON
                         GestureDetector(
-                          onTap: _handleLogin,
-                          child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                )
-                              : Container(
-                                  height: responsive.buttonHeight,
-                                  margin: EdgeInsets.symmetric(horizontal: responsive.isMobile ? 50 : 30),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(50),
-                                    color: const Color.fromARGB(255, 13, 153, 31),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.green.withOpacity(0.3),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 5),
+                          onTap: _isLoading ? null : _handleLogin,
+                          child: Container(
+                            height: responsive.buttonHeight,
+                            margin: EdgeInsets.symmetric(horizontal: responsive.isMobile ? 50 : 30),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(50),
+                              color: _isLoading 
+                                  ? const Color.fromARGB(255, 13, 153, 31).withOpacity(0.7)
+                                  : const Color.fromARGB(255, 13, 153, 31),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.green.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        strokeWidth: 3,
                                       ),
-                                    ],
-                                  ),
-                                  child: Center(
-                                    child: Text(
+                                    )
+                                  : Text(
                                       "Login",
                                       style: TextStyle(
                                         color: Colors.white,
@@ -322,8 +346,8 @@ class _LoginpageState extends State<Loginpage> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ),
-                                ),
+                            ),
+                          ),
                         ),
 
                         SizedBox(height: responsive.spacing(60)),
