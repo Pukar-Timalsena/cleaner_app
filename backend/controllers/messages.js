@@ -33,7 +33,20 @@ exports.sendMessage = async (req, res, next) => {
 
     // Add booking reference if provided
     if (bookingId) {
-      const booking = await Booking.findOne({ bookingId: bookingId });
+      let booking;
+
+      // Check if it looks like a MongoDB ObjectId (24 hex characters)
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(bookingId);
+
+      if (isObjectId) {
+        booking = await Booking.findById(bookingId);
+      }
+
+      // If not found by _id, try by bookingId string
+      if (!booking) {
+        booking = await Booking.findOne({ bookingId: bookingId });
+      }
+
       if (booking) {
         messageData.booking = booking._id;
       }
@@ -62,8 +75,20 @@ exports.getMessagesForBooking = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
 
-    // Find booking by bookingId string (e.g., "BK001")
-    const booking = await Booking.findOne({ bookingId: bookingId });
+    // Find booking by bookingId string (e.g., "BK001") or by MongoDB _id
+    let booking;
+
+    // Check if it looks like a MongoDB ObjectId (24 hex characters)
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(bookingId);
+
+    if (isObjectId) {
+      booking = await Booking.findById(bookingId);
+    }
+
+    // If not found by _id, try by bookingId string
+    if (!booking) {
+      booking = await Booking.findOne({ bookingId: bookingId });
+    }
 
     if (!booking) {
       // Return empty array if booking not found (not an error)

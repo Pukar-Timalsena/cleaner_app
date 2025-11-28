@@ -71,8 +71,7 @@ class _MessagesPageState extends State<MessagesPage> {
         }
       });
     } catch (e) {
-      // If loading fails, just show empty messages - don't show error
-      // This allows the user to still try sending messages
+      print('Error loading messages: $e');
       setState(() {
         messages = [];
         _isLoading = false;
