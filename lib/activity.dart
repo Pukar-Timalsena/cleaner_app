@@ -507,7 +507,7 @@ class _ActivityPageState extends State<ActivityPage> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => MessagesPage(
-                              bookingId: booking['_id'],
+                              bookingId: booking['bookingId'] ?? booking['_id'],
                               recipientId: cleaner['_id'] ?? '',
                               recipientName: cleaner['name'] ?? 'Cleaner',
                               recipientType: 'cleaner',

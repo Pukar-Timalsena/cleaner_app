@@ -496,7 +496,7 @@ class _CleanerDashboardState extends State<CleanerDashboard> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => MessagesPage(
-                        bookingId: booking['_id'],
+                        bookingId: booking['bookingId'] ?? booking['_id'],
                         recipientId: customer['_id'] ?? '',
                         recipientName: customerName,
                         recipientType: 'customer',

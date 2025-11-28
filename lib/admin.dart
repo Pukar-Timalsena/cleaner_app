@@ -411,9 +411,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                 SizedBox(height: responsive.spacing(30)),
 
-                // Recent Bookings
+                // Ongoing Bookings - filter to show only ongoing (in_progress, assigned) bookings
                 Text(
-                  "Recent Bookings",
+                  "Ongoing Bookings",
                   style: TextStyle(
                     fontSize: responsive.responsiveFontSize(18),
                     fontWeight: FontWeight.bold,
@@ -424,25 +424,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                 _isLoadingBookings
                     ? const Center(child: CircularProgressIndicator())
-                    : bookings.isEmpty
-                        ? Center(
-                            child: Text(
-                              "No bookings yet",
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: responsive.responsiveFontSize(14),
+                    : Builder(
+                        builder: (context) {
+                          // Filter for ongoing bookings only
+                          final ongoingBookings = bookings.where((b) {
+                            final status = b['status'];
+                            return status == 'in_progress' || status == 'assigned';
+                          }).take(2).toList();
+
+                          if (ongoingBookings.isEmpty) {
+                            return Center(
+                              child: Text(
+                                "No ongoing bookings",
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: responsive.responsiveFontSize(14),
+                                ),
                               ),
-                            ),
-                          )
-                        : ListView.builder(
+                            );
+                          }
+
+                          return ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: bookings.length > 5 ? 5 : bookings.length,
+                            itemCount: ongoingBookings.length,
                             itemBuilder: (context, index) {
-                              final booking = bookings[index];
+                              final booking = ongoingBookings[index];
                               return _recentBookingCard(booking, responsive);
                             },
-                          ),
+                          );
+                        },
+                      ),
               ],
             ),
           ),

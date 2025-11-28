@@ -266,54 +266,71 @@ class _HomepageState extends State<Homepage> {
                 SizedBox(height: responsive.spacing(20)),
 
                 // ---------------- MY BOOKINGS ----------------
-                if (bookings.isNotEmpty) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "My Bookings",
-                        style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(18),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() => _currentIndex = 1); // Navigate to Activity tab
-                        },
-                        child: Text(
-                          "View All",
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: responsive.responsiveFontSize(14),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                // Show ongoing bookings section
+                Builder(
+                  builder: (context) {
+                    // Filter for ongoing bookings only (in_progress or assigned)
+                    final ongoingBookings = bookings.where((b) {
+                      final status = b['status'];
+                      return status == 'in_progress' || status == 'assigned';
+                    }).take(2).toList();
 
-                  SizedBox(height: responsive.spacing(12)),
+                    if (ongoingBookings.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
 
-                  // Bookings List (show max 3 recent bookings)
-                  _isLoadingBookings
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: bookings.length > 3 ? 3 : bookings.length,
-                          itemBuilder: (context, index) {
-                            final booking = bookings[index];
-                            return _bookingCard(booking, responsive);
-                          },
+                    return Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Ongoing Bookings",
+                              style: TextStyle(
+                                fontSize: responsive.responsiveFontSize(18),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                setState(() => _currentIndex = 1); // Navigate to Activity tab
+                              },
+                              child: Text(
+                                "View All",
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontSize: responsive.responsiveFontSize(14),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
 
-                  SizedBox(height: responsive.spacing(20)),
-                ],
+                        SizedBox(height: responsive.spacing(12)),
+
+                        // Ongoing Bookings List (show max 2)
+                        _isLoadingBookings
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: ongoingBookings.length,
+                                itemBuilder: (context, index) {
+                                  final booking = ongoingBookings[index];
+                                  return _bookingCard(booking, responsive);
+                                },
+                              ),
+
+                        SizedBox(height: responsive.spacing(20)),
+                      ],
+                    );
+                  },
+                ),
 
                 Text(
                   "Featured Services",
@@ -755,7 +772,7 @@ class _HomepageState extends State<Homepage> {
       context,
       MaterialPageRoute(
         builder: (context) => MessagesPage(
-          bookingId: booking['_id'],
+          bookingId: booking['bookingId'] ?? booking['_id'],
           recipientId: cleaner['_id'] ?? '',
           recipientName: cleaner['name'] ?? 'Cleaner',
           recipientType: 'cleaner',
