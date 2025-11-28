@@ -111,7 +111,7 @@ class _MessagesPageState extends State<MessagesPage> {
         );
       }
     } catch (e) {
-      _showError('Messaging feature coming soon!');
+      _showError('Failed to send message: $e');
     } finally {
       setState(() {
         _isSending = false;
