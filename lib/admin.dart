@@ -44,6 +44,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   bool _isUploading = false;
   String? _selectedCategory;
 
+  // Services list state
+  bool _showAddServiceForm = false;
+  List<Map<String, dynamic>> _servicesList = [];
+  bool _isLoadingServices = true;
+
   final List<Map<String, String>> _categories = [
     {'value': 'house-cleaning', 'label': 'House Cleaning'},
     {'value': 'carpet-cleaning', 'label': 'Carpet Cleaning'},
@@ -65,7 +70,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _loadBookings(),
       _loadCleaners(),
       _loadAdminUser(),
+      _loadServicesList(),
     ]);
+  }
+
+  Future<void> _loadServicesList() async {
+    try {
+      final services = await ApiService.getServices();
+      setState(() {
+        _servicesList = services.map((s) => Map<String, dynamic>.from(s)).toList();
+        _isLoadingServices = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingServices = false;
+      });
+      _showError('Failed to load services: $e');
+    }
   }
 
   Future<void> _loadDashboardStats() async {
@@ -200,10 +221,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
       setState(() {
         _image = null;
         _selectedCategory = null;
+        _showAddServiceForm = false; // Go back to services list
       });
 
-      // Refresh dashboard stats
+      // Refresh dashboard stats and services list
       _loadDashboardStats();
+      _loadServicesList();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -875,42 +898,121 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Upload New Service",
-                style: TextStyle(
-                  fontSize: responsive.responsiveFontSize(22),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              SizedBox(height: responsive.spacing(8)),
-
-              // Detailed Instructions
-              Container(
-                padding: EdgeInsets.all(responsive.spacing(12)),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                    SizedBox(width: responsive.spacing(8)),
-                    Expanded(
-                      child: Text(
-                        "Add new cleaning services to your platform. Fill in all details and upload a high-quality image.",
+              // Header with title and Add Service button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      if (_showAddServiceForm)
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () {
+                            setState(() {
+                              _showAddServiceForm = false;
+                            });
+                          },
+                        ),
+                      Text(
+                        _showAddServiceForm ? "Add New Service" : "Services List",
                         style: TextStyle(
-                          fontSize: responsive.responsiveFontSize(12),
-                          color: Colors.blue.shade900,
+                          fontSize: responsive.responsiveFontSize(22),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!_showAddServiceForm)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _showAddServiceForm = true;
+                        });
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text(
+                        "Add Service",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
 
-              SizedBox(height: responsive.spacing(20)),
+              SizedBox(height: responsive.spacing(16)),
+
+              // Show either services list or add service form
+              if (!_showAddServiceForm) ...[
+                // Services List
+                _isLoadingServices
+                    ? const Center(child: CircularProgressIndicator())
+                    : _servicesList.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(height: responsive.spacing(40)),
+                                Icon(Icons.home_repair_service, size: 60, color: Colors.grey.shade400),
+                                SizedBox(height: responsive.spacing(12)),
+                                Text(
+                                  "No services yet",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: responsive.responsiveFontSize(16),
+                                  ),
+                                ),
+                                SizedBox(height: responsive.spacing(8)),
+                                Text(
+                                  "Click 'Add Service' to create your first service",
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: responsive.responsiveFontSize(14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _servicesList.length,
+                            itemBuilder: (context, index) {
+                              final service = _servicesList[index];
+                              return _serviceCard(service, responsive);
+                            },
+                          ),
+              ] else ...[
+                // Add Service Form
+                Container(
+                  padding: EdgeInsets.all(responsive.spacing(12)),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                      SizedBox(width: responsive.spacing(8)),
+                      Expanded(
+                        child: Text(
+                          "Add new cleaning services to your platform. Fill in all details and upload a high-quality image.",
+                          style: TextStyle(
+                            fontSize: responsive.responsiveFontSize(12),
+                            color: Colors.blue.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: responsive.spacing(20)),
 
               Container(
                 padding: EdgeInsets.all(responsive.spacing(20)),
@@ -1164,9 +1266,104 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                 ),
               ),
+              ], // End of else block for add service form
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Service card widget for the services list
+  Widget _serviceCard(Map<String, dynamic> service, ResponsiveUtils responsive) {
+    return Container(
+      margin: EdgeInsets.only(bottom: responsive.spacing(12)),
+      padding: EdgeInsets.all(responsive.spacing(16)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Service image or icon
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.orange.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: service['image'] != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      service['image'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.home_repair_service,
+                        color: Colors.orange.shade700,
+                        size: 30,
+                      ),
+                    ),
+                  )
+                : Icon(
+                    Icons.home_repair_service,
+                    color: Colors.orange.shade700,
+                    size: 30,
+                  ),
+          ),
+          SizedBox(width: responsive.spacing(12)),
+          // Service details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  service['title'] ?? 'Unknown Service',
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(15),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: responsive.spacing(4)),
+                Text(
+                  service['category'] ?? 'No category',
+                  style: TextStyle(
+                    fontSize: responsive.responsiveFontSize(12),
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Price
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: responsive.spacing(12),
+              vertical: responsive.spacing(6),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'NPR ${service['basePrice'] ?? 0}',
+              style: TextStyle(
+                fontSize: responsive.responsiveFontSize(13),
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
