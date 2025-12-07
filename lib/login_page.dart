@@ -147,51 +147,6 @@ class _LoginpageState extends State<Loginpage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: responsive.spacing(15)),
-                  // Test Credentials Info
-                  Container(
-                    padding: EdgeInsets.all(responsive.spacing(12)),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Test Credentials:",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: responsive.responsiveFontSize(12),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: responsive.spacing(6)),
-                        Text(
-                          "Customer: user@test.com / user123",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: responsive.responsiveFontSize(11),
-                          ),
-                        ),
-                        Text(
-                          "Admin: admin@test.com / admin123",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: responsive.responsiveFontSize(11),
-                          ),
-                        ),
-                        Text(
-                          "Cleaner: cleaner@test.com / cleaner123",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: responsive.responsiveFontSize(11),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -350,59 +305,6 @@ class _LoginpageState extends State<Loginpage> {
                           ),
                         ),
 
-                        SizedBox(height: responsive.spacing(60)),
-
-                        Text(
-                          'Continue with social media',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
-                          ),
-                        ),
-
-                        SizedBox(height: responsive.spacing(15)),
-
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Container(
-                                height: responsive.spacing(40),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: Colors.blue,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "Facebook",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: responsive.spacing(30)),
-                            Expanded(
-                              child: Container(
-                                height: responsive.spacing(40),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: Colors.black,
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "Github",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: responsive.responsiveFontSize(14, tabletSize: 15, desktopSize: 16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
