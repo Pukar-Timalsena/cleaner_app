@@ -31,7 +31,11 @@ class _HomepageState extends State<Homepage> {
 
   // Dynamic services list
   List<Map<String, dynamic>> services = [];
+  List<Map<String, dynamic>> filteredServices = [];
   bool _isLoadingServices = true;
+
+  // Search controller
+  final TextEditingController _searchController = TextEditingController();
 
   // Bookings list
   List<Map<String, dynamic>> bookings = [];
@@ -44,6 +48,12 @@ class _HomepageState extends State<Homepage> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -62,6 +72,7 @@ class _HomepageState extends State<Homepage> {
       final servicesList = await ApiService.getServices();
       setState(() {
         services = servicesList.map((s) => Map<String, dynamic>.from(s)).toList();
+        filteredServices = services;
         _isLoadingServices = false;
       });
     } catch (e) {
@@ -70,6 +81,24 @@ class _HomepageState extends State<Homepage> {
       });
       _showError('Failed to load services: $e');
     }
+  }
+
+  void _filterServices(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        filteredServices = services;
+      } else {
+        filteredServices = services.where((service) {
+          final title = (service['title'] ?? '').toString().toLowerCase();
+          final category = (service['category'] ?? '').toString().toLowerCase();
+          final location = (service['location'] ?? '').toString().toLowerCase();
+          final searchQuery = query.toLowerCase();
+          return title.contains(searchQuery) ||
+              category.contains(searchQuery) ||
+              location.contains(searchQuery);
+        }).toList();
+      }
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -213,15 +242,30 @@ class _HomepageState extends State<Homepage> {
                       Icon(Icons.search, color: Colors.grey),
                       SizedBox(width: responsive.spacing(10)),
                       Expanded(
-                        child: Text(
-                          "Search the services",
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: _filterServices,
+                          decoration: InputDecoration(
+                            hintText: "Search the services",
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontSize: responsive.responsiveFontSize(14),
+                            ),
+                            border: InputBorder.none,
+                          ),
                           style: TextStyle(
-                            color: Colors.grey,
                             fontSize: responsive.responsiveFontSize(14),
                           ),
                         ),
                       ),
-                      Icon(Icons.filter_list),
+                      if (_searchController.text.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                            _searchController.clear();
+                            _filterServices('');
+                          },
+                          child: Icon(Icons.close, color: Colors.grey),
+                        ),
                     ],
                   ),
                 ),
@@ -369,24 +413,43 @@ class _HomepageState extends State<Homepage> {
                               ),
                             ),
                           )
-                        : GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: services.length,
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: responsive.getGridCrossAxisCount(),
-                              mainAxisExtent: responsive.isMobile ? 260 : 280,
-                              crossAxisSpacing: responsive.spacing(15),
-                              mainAxisSpacing: responsive.spacing(15),
-                            ),
-                            itemBuilder: (context, index) {
-                              final service = services[index];
-                              return serviceCard(
-                                service: service,
-                                image: _getServiceImage(service),
-                              );
-                            },
-                          ),
+                        : filteredServices.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(40),
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.search_off, size: 60, color: Colors.grey.shade400),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        "No services found",
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: responsive.responsiveFontSize(16),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: filteredServices.length,
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: responsive.getGridCrossAxisCount(),
+                                  mainAxisExtent: responsive.isMobile ? 260 : 280,
+                                  crossAxisSpacing: responsive.spacing(15),
+                                  mainAxisSpacing: responsive.spacing(15),
+                                ),
+                                itemBuilder: (context, index) {
+                                  final service = filteredServices[index];
+                                  return serviceCard(
+                                    service: service,
+                                    image: _getServiceImage(service),
+                                  );
+                                },
+                              ),
 
                 SizedBox(height: responsive.spacing(20)),
               ],
