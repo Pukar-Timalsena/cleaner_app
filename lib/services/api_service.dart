@@ -21,7 +21,12 @@ class ApiService {
     );
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return jsonDecode(response.body);
+      final responseData = jsonDecode(response.body);
+      // Save token after successful registration
+      if (responseData['token'] != null) {
+        await saveToken(responseData['token']);
+      }
+      return responseData;
     } else {
       final body = jsonDecode(response.body);
       if (body['error'] != null) {
